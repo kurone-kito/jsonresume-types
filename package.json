@@ -1,0 +1,38 @@
+{
+  "name": "@kurone-kito/jsonresume-types",
+  "version": "0.1.0",
+  "description": "TypeScript type definition for JSON Resume",
+  "author": "kurone-kito",
+  "license": "MIT",
+  "keywords": [
+    "curriculum vitae",
+    "CV",
+    "JSONResume",
+    "JSON Resume",
+    "resume",
+    "Types definition",
+    "TypeScript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kurone-kito/jsonresume-types.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kurone-kito/jsonresume-types/issues"
+  },
+  "homepage": "https://github.com/kurone-kito/jsonresume-types#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prepack": "json2ts -i node_modules/resume-schema/schema.json -o index.d.ts"
+  },
+  "engines": {
+    "node": ">=8.16"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "json-schema-to-typescript": "^7.1.0",
+    "resume-schema": "0.0.18"
+  }
+}
