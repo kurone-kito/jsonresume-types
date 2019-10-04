@@ -1,6 +1,6 @@
 {
   "name": "@kurone-kito/jsonresume-types",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TypeScript type definition for JSON Resume",
   "author": "kurone-kito",
   "license": "MIT",
@@ -24,6 +24,7 @@
   "publishConfig": {
     "access": "public"
   },
+  "main": "index.d.ts",
   "scripts": {
     "prepack": "json2ts -i node_modules/resume-schema/schema.json -o index.d.ts"
   },
