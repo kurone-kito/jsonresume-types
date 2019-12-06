@@ -29,7 +29,7 @@
     "prepack": "json2ts -i node_modules/resume-schema/schema.json -o index.d.ts"
   },
   "engines": {
-    "node": ">=8.16"
+    "node": ">=10"
   },
   "dependencies": {},
   "devDependencies": {
