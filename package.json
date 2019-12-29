@@ -33,7 +33,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "json-schema-to-typescript": "^7.1.0",
+    "json-schema-to-typescript": "^8.0.0",
     "resume-schema": "0.0.18"
   }
 }
