@@ -40,6 +40,9 @@ jobs:
       - name: npm install
         run: npm ci
       - name: Release
-        run: npm publish
+        run: |
+          echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
+          npm publish
+          rm -f .npmrc
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
