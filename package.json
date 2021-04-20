@@ -30,7 +30,7 @@
     "prepare": "husky install"
   },
   "engines": {
-    "node": ">=12.20"
+    "node": ">=12"
   },
   "dependencies": {},
   "devDependencies": {
