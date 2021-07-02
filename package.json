@@ -1,6 +1,6 @@
 {
   "name": "@kurone-kito/jsonresume-types",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "TypeScript type definition for JSON Resume",
   "author": "kurone-kito",
   "license": "MIT",
