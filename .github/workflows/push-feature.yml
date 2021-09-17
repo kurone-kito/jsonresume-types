@@ -1,0 +1,42 @@
+name: CI on push the feature branches
+on:
+  push:
+    branches:
+      - "*"
+      - "!master"
+jobs:
+  build:
+    name: Build production code
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version:
+          - 12.x
+          - 14.x
+          - 16.x
+          - 17.x
+        cache-key:
+          - "32df6b19-84b9-46b6-a6c8-7f52b1a50182"
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: set npm config
+        run: npm config set unsafe-perm true
+      - name: Determine npm cache directory
+        id: npm-cache
+        run: echo "::set-output name=dir::$(npm config get cache)"
+      - name: Persist the cache of dependent packages.
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.npm-cache.outputs.dir }}
+          key: ${{ matrix.cache-key }}_${{ runner.os }}-node_v${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ matrix.cache-key }}_${{ runner.os }}-node_v${{ matrix.node-version }}-
+            ${{ matrix.cache-key }}_${{ runner.os }}-node_v
+            ${{ matrix.cache-key }}_${{ runner.os }}-node-
+            ${{ matrix.cache-key }}_${{ runner.os }}-
+      - run: npm ci --legacy-peer-deps
+      - run: npm pack
