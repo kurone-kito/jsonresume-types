@@ -1,6 +1,6 @@
 {
   "name": "@kurone-kito/jsonresume-types",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "TypeScript type definition for JSON Resume",
   "author": "kurone-kito",
   "license": "MIT",
@@ -34,10 +34,10 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@commitlint/cli": "^13.0.0",
-    "@commitlint/config-conventional": "^13.0.0",
-    "husky": "^7.0.0",
-    "json-schema-to-typescript": "^10.1.4",
+    "@commitlint/cli": "^15.0.0",
+    "@commitlint/config-conventional": "^15.0.0",
+    "husky": "^7.0.4",
+    "json-schema-to-typescript": "^10.1.5",
     "resume-schema": "^1.0.0"
   }
 }
