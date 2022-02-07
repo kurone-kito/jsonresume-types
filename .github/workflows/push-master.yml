@@ -28,3 +28,11 @@ jobs:
           access: public
           dry-run: ${{ !!env.ACT }}
           token: ${{ !env.ACT && secrets.NPM_TOKEN || env.INVALID_DUMMY_TOKEN }}
+      - name: Build and release for GitHub Registry
+        uses: JS-DevTools/npm-publish@v1
+        with:
+          access: public
+          check-version: false
+          dry-run: ${{ !!env.ACT }}
+          registry: https://npm.pkg.github.com
+          token: ${{ !env.ACT && secrets.GH_PKG_TOKEN || env.INVALID_DUMMY_TOKEN }}
