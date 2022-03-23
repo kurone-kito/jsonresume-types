@@ -34,7 +34,7 @@
     "resume-schema": "^1.0.0"
   },
   "engines": {
-    "node": ">=12"
+    "node": ">=12.22"
   },
   "publishConfig": {
     "access": "public"
