@@ -27,8 +27,8 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@commitlint/cli": "^15.0.0",
-    "@commitlint/config-conventional": "^15.0.0",
+    "@commitlint/cli": "^16.2.3",
+    "@commitlint/config-conventional": "^16.2.1",
     "husky": "^7.0.4",
     "json-schema-to-typescript": "^10.1.5",
     "resume-schema": "^1.0.0"
