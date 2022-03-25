@@ -2,8 +2,8 @@ name: CI on push the feature branches
 on:
   push:
     branches:
-      - "*"
-      - "!master"
+      - '*'
+      - '!master'
 permissions:
   contents: read
 jobs:
