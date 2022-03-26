@@ -3,42 +3,36 @@ on:
   push:
     branches:
       - master
+permissions:
+  contents: read
 jobs:
   deploy:
     name: Build and deploy
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version:
-          - "12.x"
-        cache-key:
-          - "b0b054bd-d087-4092-9e56-c7242707a292"
+    env:
+      INVALID_DUMMY_TOKEN: invalid-token
     steps:
       - uses: actions/checkout@v2
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use the specified version of Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: ${{ matrix.node-version }}
+          cache: ${{ !env.ACT && 'npm' || '' }}
+          node-version-file: .node-version
       - name: set npm config
         run: npm config set unsafe-perm true
-      - name: Determine npm cache directory
-        id: npm-cache
-        run: echo "::set-output name=dir::$(npm config get cache)"
-      - name: Persist the cache of dependent packages.
-        uses: actions/cache@v2
+      - name: Resolve the dependencies
+        run: npm ci
+      - name: Build and release for NPM
+        uses: JS-DevTools/npm-publish@v1
         with:
-          path: ${{ steps.npm-cache.outputs.dir }}
-          key: ${{ matrix.cache-key }}_${{ runner.os }}-node_v${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ matrix.cache-key }}_${{ runner.os }}-node_v${{ matrix.node-version }}-
-            ${{ matrix.cache-key }}_${{ runner.os }}-node_v
-            ${{ matrix.cache-key }}_${{ runner.os }}-node-
-            ${{ matrix.cache-key }}_${{ runner.os }}-
-      - run: npm ci
-      - name: Release
-        run: |
-          echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
-          npm publish
-          rm -f .npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          access: public
+          dry-run: ${{ !!env.ACT }}
+          token: ${{ !env.ACT && secrets.NPM_TOKEN || env.INVALID_DUMMY_TOKEN }}
+      - name: Build and release for GitHub Registry
+        uses: JS-DevTools/npm-publish@v1
+        with:
+          access: public
+          check-version: false
+          dry-run: ${{ !!env.ACT }}
+          registry: https://npm.pkg.github.com
+          token: ${{ !env.ACT && secrets.GH_PKG_TOKEN || env.INVALID_DUMMY_TOKEN }}

@@ -291,5 +291,19 @@ $RECYCLE.BIN/
 ### THE PROJECT SPECIFIES #################################################
 
 ### Node ###
+# Husky
+.husky/_
+
+# Ignorefiles
+.*ignore
+
 # TypeScript v1 declaration files
 *.d.ts
+
+# Version managers
+.node-version
+.nvmrc
+.tool-versions
+
+### Text ###
+LICENSE

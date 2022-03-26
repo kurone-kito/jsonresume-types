@@ -15,3 +15,7 @@ export const render = (json: ResumeSchema) => {
   // ...
 };
 ```
+
+## License
+
+MIT
