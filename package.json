@@ -40,7 +40,7 @@
     "resume-schema": "^1.0.0"
   },
   "engines": {
-    "node": ">=12.22"
+    "node": ">=14.19"
   },
   "publishConfig": {
     "access": "public"
