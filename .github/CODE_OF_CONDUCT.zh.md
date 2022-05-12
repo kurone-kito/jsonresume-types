@@ -1,6 +1,6 @@
 # 贡献者公约
 
-Language: [🇬🇧](./CODE_OF_CONDUCT.md) | [🇯🇵](./CODE_OF_CONDUCT.ja.md) | [🇨🇳](./CODE_OF_CONDUCT.zh.md)
+Language: [🇬🇧](./CODE_OF_CONDUCT.md) | [🇯🇵](./CODE_OF_CONDUCT.ja.md) | 🇨🇳
 
 ## 我们的承诺
 
