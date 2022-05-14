@@ -1,10 +1,4 @@
 endOfLine: lf
-overrides:
-  - files:
-      - .yarnrc.yml
-      - yarn.lock
-    options:
-      singleQuote: false
 plugins:
   - prettier-plugin-packagejson
   - prettier-plugin-sh
