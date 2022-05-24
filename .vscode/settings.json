@@ -1,0 +1,10 @@
+{
+  "cSpell.ignorePaths": [
+    ".git/objects",
+    ".github/CODE_OF_CONDUCT.*",
+    ".vscode",
+    "node_modules",
+    "package-lock.json"
+  ],
+  "cSpell.words": ["Kito", "Kuroné", "kurone-kito", "npmjs"]
+}
