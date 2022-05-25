@@ -1,6 +1,6 @@
 {
   "name": "@kurone-kito/jsonresume-types",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "TypeScript type definition for JSON Resume",
   "keywords": [
     "curriculum vitae",
@@ -29,7 +29,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@commitlint/cli": "^17.0.0",
+    "@commitlint/cli": "^17.0.1",
     "@commitlint/config-conventional": "^17.0.0",
     "husky": "^8.0.1",
     "json-schema-to-typescript": "^10.1.5",

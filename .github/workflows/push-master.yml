@@ -33,7 +33,6 @@ jobs:
         uses: JS-DevTools/npm-publish@v1
         with:
           access: public
-          check-version: false
           dry-run: ${{ !!env.ACT }}
           registry: https://npm.pkg.github.com
-          token: ${{ !env.ACT && secrets.GH_TOKEN || env.INVALID_DUMMY_TOKEN }}
+          token: ${{ !env.ACT && secrets.GITHUB_TOKEN || env.INVALID_DUMMY_TOKEN }}
