@@ -24,8 +24,9 @@
   "scripts": {
     "prepack": "json2ts -i node_modules/resume-schema/schema.json -o index.d.ts",
     "prepare": "husky install",
-    "prettier:check": "prettier --check \"./**/*\"",
-    "prettier:fix": "prettier --write \"./**/*\""
+    "prettier": "prettier --cache --loglevel=warn \"$@\" \"./**/*\"",
+    "prettier:check": "npm run prettier -- -cu",
+    "prettier:fix": "npm run prettier -- -uw"
   },
   "dependencies": {},
   "devDependencies": {
