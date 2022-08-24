@@ -1,6 +1,8 @@
 # 贡献
 
-Language: [🇬🇧](./CONTRIBUTING.md) | [🇯🇵](./CONTRIBUTING.ja.md) | 🇨🇳
+Language: [🇬🇧](./CONTRIBUTING.md) | [🇯🇵](./CONTRIBUTING.ja.md) | **🇨🇳**
+
+---
 
 在为此存储库做出贡献时，请首先在进行更改之前与该存储库的所有者讨论您希望通过问题或任何其他方法进行的更改。
 

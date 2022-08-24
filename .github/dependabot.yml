@@ -13,5 +13,5 @@ updates:
 registries:
   npm-github:
     token: ${{ secrets.NPM_TOKEN }}
-    type: npm-npmjs
+    type: npm-registry
     url: https://registry.npmjs.org

@@ -6,5 +6,9 @@
     "node_modules",
     "package-lock.json"
   ],
-  "cSpell.words": ["Kito", "Kuroné", "kurone-kito", "npmjs"]
+  "cSpell.words": ["Kito", "Kuroné", "kurone-kito", "npmjs"],
+  "files.watcherExclude": {
+    "**/*.d.ts": true,
+    "**/*.tgz": true
+  }
 }

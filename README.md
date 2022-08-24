@@ -4,7 +4,7 @@ TypeScript type definition for [JSON Resume](http://jsonresume.org)
 
 ## System requirement
 
-- Node.js >= v14.19
+- Node.js >= v14.20
 
 ## Usage
 
