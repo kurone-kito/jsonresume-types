@@ -307,14 +307,3 @@ $RECYCLE.BIN/
 
 # TypeScript v1 declaration files
 *.d.ts
-
-# Version managers
-.node-version
-.nvmrc
-.tool-versions
-
-### Text ###
-LICENSE
-
-### Others ###
-.editorconfig
