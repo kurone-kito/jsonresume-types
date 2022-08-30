@@ -2,6 +2,11 @@
 
 TypeScript type definition for [JSON Resume](http://jsonresume.org)
 
+## Pros
+
+- No dependencies (only devDependencies)
+- No logic (only type definition)
+
 ## System requirement
 
 - Node.js >= v14.20
