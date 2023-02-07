@@ -13,9 +13,10 @@ jobs:
     env:
       INVALID_DUMMY_TOKEN: invalid-token
     steps:
-      - uses: actions/checkout@v2
-      - name: Use the specified version of Node.js
-        uses: actions/setup-node@v2
+      - name: Stages the pushed branch
+        uses: actions/checkout@v3
+      - name: Prepare the Node.js environment
+        uses: actions/setup-node@v3
         with:
           cache: ${{ !env.ACT && 'npm' || '' }}
           node-version-file: .node-version
