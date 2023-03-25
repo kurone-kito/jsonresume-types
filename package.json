@@ -1,6 +1,6 @@
 {
   "name": "@kurone-kito/jsonresume-types",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "TypeScript type definition for JSON Resume",
   "keywords": [
     "curriculum vitae",
