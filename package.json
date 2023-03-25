@@ -30,6 +30,7 @@
     "prettier:check": "npm run -s prettier -- -cu",
     "prettier:fix": "npm run -s prettier -- -uw"
   },
+  "prettier": "@kurone-kito/prettier-config",
   "devDependencies": {
     "@commitlint/cli": "^17.5.0",
     "@commitlint/config-conventional": "^17.4.4",
