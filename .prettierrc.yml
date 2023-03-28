@@ -1,5 +1,0 @@
-endOfLine: lf
-plugins:
-  - prettier-plugin-packagejson
-  - prettier-plugin-sh
-singleQuote: true
