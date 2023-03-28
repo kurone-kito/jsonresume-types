@@ -23,7 +23,7 @@
   ],
   "scripts": {
     "build": "json2ts -i node_modules/resume-schema/schema.json -o index.d.ts",
-    "clean": "rimraf *.d.ts *.tgz",
+    "clean": "rimraf -g \"*.d.ts\" \"*.tgz\"",
     "prepack": "npm run -s clean && npm run -s build",
     "prepare": "husky install",
     "prettier": "prettier --cache --loglevel=warn \"./**/*\"",
