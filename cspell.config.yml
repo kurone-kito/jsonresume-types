@@ -1,0 +1,31 @@
+cache:
+  cacheFormat: universal
+  cacheLocation: node_modules/.cache/cspell/.cspell.cache
+  cacheStrategy: metadata
+  useCache: true
+dictionaries:
+  - cpp
+  - node
+  - npm
+  - typescript
+enableGlobDot: true
+language: en,ja
+languageSettings:
+  - allowCompoundWords: true
+    caseSensitive: false
+    enabled: true
+    languageId: '*'
+    locale: en,ja
+ignorePaths:
+  - .*ignore
+  - .git
+  - .github/CODE_OF_CONDUCT.*
+  - .vscode/extensions.json
+  - cspell.config.yml
+  - node_modules
+ignoreWords:
+  - kito
+  - kurone
+  - Kuroné
+useGitignore: true
+version: '0.2'
