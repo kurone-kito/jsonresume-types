@@ -1,7 +1,21 @@
 {
+  "files.readonlyInclude": {
+    "**/*.d.ts": true,
+    "**/*.tgz": true,
+    "**/.husky*": true,
+    "**/node_modules/**/*": true
+  },
   "files.watcherExclude": {
     "**/*.d.ts": true,
-    "**/*.tgz": true
+    "**/*.tgz": true,
+    "**/.husky*": true,
+    "**/node_modules/**/*": true
+  },
+  "git.branchProtection": ["master"],
+  "search.exclude": {
+    "**/*.d.ts": true,
+    "**/.husky*": true,
+    "**/node_modules/**/*": true
   },
   "yaml.schemas": {
     "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/packages/cspell-types/cspell.schema.json": [
