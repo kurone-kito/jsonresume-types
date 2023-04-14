@@ -9,7 +9,11 @@ permissions:
 jobs:
   build:
     name: Build the production code
-    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: ${{ matrix.platform.shell }}
+    runs-on: ${{ matrix.platform.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
         node-version:
@@ -17,7 +21,19 @@ jobs:
           - 16.x
           - 18.x
           - 19.x
+        platform:
+          - os: ubuntu-latest
+            shell: bash
+          - os: windows-latest
+            shell: bash
+          - os: windows-latest
+            shell: powershell
+      fail-fast: false
     steps:
+      - name: Set git to use LF
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
       - name: Stages the pushed branch
         uses: actions/checkout@v3
       - name: Prepare the Node.js version ${{ matrix.node-version }} environment
