@@ -46,7 +46,7 @@
     "rimraf": "^4.4.1"
   },
   "engines": {
-    "node": ">=14.20"
+    "node": ">=16.20"
   },
   "publishConfig": {
     "access": "public"
