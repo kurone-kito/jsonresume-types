@@ -1,0 +1,3 @@
+'*':
+  - npx --no-install cspell lint --no-must-find-files --no-progress --show-suggestions -u
+  - npx --no-install prettier --cache --log-level=warn -uw

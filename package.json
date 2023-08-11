@@ -24,9 +24,10 @@
   "scripts": {
     "build": "json2ts -i node_modules/resume-schema/schema.json -o index.d.ts",
     "clean": "rimraf -g \"*.d.ts\" \"*.tgz\" \"node_modules/.cache/**/*\"",
+    "cspell": "cspell lint --no-progress --show-suggestions -u \"./**/*\"",
     "prepack": "npm run -s clean && npm run -s build",
     "prepare": "husky install",
-    "prettier": "prettier --cache --loglevel=warn \"./**/*\"",
+    "prettier": "prettier --cache --log-level=warn \"./**/*\"",
     "prettier:check": "npm run -s prettier -- -cu",
     "prettier:fix": "npm run -s prettier -- -uw"
   },
