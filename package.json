@@ -29,7 +29,8 @@
     "prepare": "husky install",
     "prettier": "prettier --cache --log-level=warn \"./**/*\"",
     "prettier:check": "npm run -s prettier -- -cu",
-    "prettier:fix": "npm run -s prettier -- -uw"
+    "prettier:fix": "npm run -s prettier -- -uw",
+    "test": "npm run -s cspell && npm run -s prettier:check"
   },
   "prettier": "@kurone-kito/prettier-config",
   "devDependencies": {
