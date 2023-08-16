@@ -1,8 +1,8 @@
-name: CI/CD on master branch
+name: Publish the packages
 on:
-  push:
-    branches:
-      - master
+  release:
+    types:
+      - published
 permissions:
   contents: read
   packages: write
@@ -25,13 +25,13 @@ jobs:
       - name: Resolve the dependencies
         run: npm ci
       - name: Build and release for NPM
-        uses: JS-DevTools/npm-publish@v1
+        uses: JS-DevTools/npm-publish@v2
         with:
           access: public
           dry-run: ${{ !!env.ACT }}
           token: ${{ !env.ACT && secrets.NPM_TOKEN || env.INVALID_DUMMY_TOKEN }}
       - name: Build and release for GitHub Registry
-        uses: JS-DevTools/npm-publish@v1
+        uses: JS-DevTools/npm-publish@v2
         with:
           access: public
           dry-run: ${{ !!env.ACT }}

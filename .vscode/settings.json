@@ -1,14 +1,28 @@
 {
-  "cSpell.ignorePaths": [
-    ".git/objects",
-    ".github/CODE_OF_CONDUCT.*",
-    ".vscode",
-    "node_modules",
-    "package-lock.json"
-  ],
-  "cSpell.words": ["Kito", "Kuroné", "kurone-kito", "npmjs"],
+  "files.readonlyInclude": {
+    "**/*.d.ts": true,
+    "**/*.tgz": true,
+    "**/.husky*": true,
+    "**/node_modules/**/*": true
+  },
   "files.watcherExclude": {
     "**/*.d.ts": true,
-    "**/*.tgz": true
+    "**/*.tgz": true,
+    "**/.husky*": true,
+    "**/node_modules/**/*": true
+  },
+  "git.branchProtection": ["master"],
+  "search.exclude": {
+    "**/*.d.ts": true,
+    "**/.husky*": true,
+    "**/node_modules/**/*": true
+  },
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/reviewpad/schemas/main/latest/schema.json": [
+      "reviewpad.yml"
+    ],
+    "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/packages/cspell-types/cspell.schema.json": [
+      "cspell.config.yml"
+    ]
   }
 }
