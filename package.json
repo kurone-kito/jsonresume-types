@@ -18,6 +18,7 @@
   "author": "kurone-kito <krone@kit.black> (https://kit.black/)",
   "type": "module",
   "main": "index.d.ts",
+  "types": "index.d.ts",
   "files": [
     "index.d.ts"
   ],
