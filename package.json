@@ -47,6 +47,7 @@
     "resume-schema": "^1.0.0",
     "rimraf": "^5.0.1"
   },
+  "packageManager": "npm@9.8.1",
   "engines": {
     "node": ">=16.20"
   },
