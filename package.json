@@ -38,6 +38,7 @@
     "@commitlint/cli": "^17.7.1",
     "@commitlint/config-conventional": "^17.7.0",
     "@cspell/cspell-types": "^7.0.0",
+    "@kurone-kito/cspell-config": "^0.7.6",
     "@kurone-kito/prettier-config": "^0.7.3",
     "cspell": "^7.0.0",
     "husky": "^8.0.3",
