@@ -50,7 +50,7 @@
   },
   "packageManager": "npm@9.8.1",
   "engines": {
-    "node": ">=16.20"
+    "node": ">=18.18"
   },
   "publishConfig": {
     "access": "public"
