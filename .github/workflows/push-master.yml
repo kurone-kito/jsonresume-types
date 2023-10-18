@@ -10,7 +10,7 @@ on:
       - reopened
       - synchronize
     branches:
-      - main
+      - master
 permissions:
   contents: write
 jobs:
