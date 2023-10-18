@@ -20,8 +20,6 @@ jobs:
         with:
           cache: ${{ !env.ACT && 'npm' || '' }}
           node-version-file: .node-version
-      - name: set npm config
-        run: npm config set unsafe-perm true
       - name: Resolve the dependencies
         run: npm ci
       - name: Build and release for NPM
