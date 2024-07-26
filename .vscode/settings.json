@@ -1,4 +1,12 @@
 {
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "*": "${capture}.meta, ${capture}.md5",
+    "*.md": "${capture}.*.md",
+    ".tool-versions": ".node-version, .nvmrc",
+    "package.json": "package-lock.json"
+  },
   "files.readonlyInclude": {
     "**/*.d.ts": true,
     "**/*.tgz": true,
