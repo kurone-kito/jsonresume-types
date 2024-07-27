@@ -35,9 +35,10 @@
   },
   "prettier": "@kurone-kito/prettier-config",
   "devDependencies": {
-    "@commitlint/cli": "^17.8.1",
-    "@commitlint/config-conventional": "^17.8.1",
+    "@commitlint/cli": "^19.7.1",
+    "@commitlint/config-conventional": "^19.7.1",
     "@cspell/cspell-types": "^7.3.9",
+    "@kurone-kito/commitlint-config": "^0.17.4-alpha.1",
     "@kurone-kito/cspell-config": "^0.7.6",
     "@kurone-kito/prettier-config": "^0.17.4-alpha.1",
     "cspell": "^7.3.9",
