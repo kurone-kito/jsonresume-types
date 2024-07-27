@@ -5,6 +5,7 @@
     "*": "${capture}.meta, ${capture}.md5",
     "*.md": "${capture}.*.md",
     ".gitattributes": ".gitignore",
+    ".markdownlint.*": ".markdownlint-cli2.*",
     ".tool-versions": ".node-version, .nvmrc",
     "package.json": "package-lock.json"
   },
