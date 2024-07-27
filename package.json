@@ -23,7 +23,7 @@
     "index.d.ts"
   ],
   "scripts": {
-    "build": "json2ts -i node_modules/resume-schema/schema.json -o index.d.ts",
+    "build": "json2ts -i node_modules/@jsonresume/schema/schema.json -o index.d.ts",
     "clean": "rimraf -g \"*.d.ts\" \"*.tgz\" \"node_modules/.cache/**/*\"",
     "cspell": "cspell lint --no-progress --show-suggestions -u \"./**/*\"",
     "prepack": "npm run -s clean && npm run -s build",
@@ -43,6 +43,7 @@
     "@commitlint/cli": "^19.7.1",
     "@commitlint/config-conventional": "^19.7.1",
     "@cspell/cspell-types": "^8.17.3",
+    "@jsonresume/schema": "^1.2.1",
     "@kurone-kito/commitlint-config": "^0.17.4-alpha.1",
     "@kurone-kito/cspell-config": "^0.17.4-alpha.1",
     "@kurone-kito/markdownlint-config": "^0.17.4-alpha.1",
@@ -50,11 +51,10 @@
     "concurrently": "^9.1.2",
     "cspell": "^8.17.3",
     "husky": "^9.1.7",
-    "json-schema-to-typescript": "^13.1.2",
+    "json-schema-to-typescript": "^15.0.4",
     "lint-staged": "^15.4.3",
     "markdownlint-cli2": "^0.17.2",
     "prettier": "^3.4.2",
-    "resume-schema": "^1.0.1",
     "rimraf": "^6.0.1"
   },
   "packageManager": "npm@10.9.2+sha512.8ab88f10f224a0c614cb717a7f7c30499014f77134120e9c1f0211ea3cf3397592cbe483feb38e0c4b3be1c54e347292c76a1b5edb94a3289d5448484ab8ac81",
