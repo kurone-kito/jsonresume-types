@@ -2,7 +2,15 @@
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.expand": false,
   "explorer.fileNesting.patterns": {
+    "*.md": "${capture}.*.md",
+    ".gitattributes": ".gitignore",
+    ".markdownlint.*": ".markdownlint-cli2.*",
+    ".tool-versions": ".node-version, .nvmrc",
     "package.json": ".npmrc, pnpm-lock.yaml, pnpm-workspace.yaml"
+  },
+  "files.associations": {
+    ".imgbotconfig": "json",
+    "LICENSE": "plaintext"
   },
   "files.readonlyInclude": {
     "**/*.d.ts": true,
@@ -23,11 +31,11 @@
     "**/node_modules/**/*": true
   },
   "yaml.schemas": {
-    "https://raw.githubusercontent.com/reviewpad/schemas/main/latest/schema.json": [
-      "reviewpad.yml"
-    ],
     "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/packages/cspell-types/cspell.schema.json": [
       "cspell.config.yml"
+    ],
+    "https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json": [
+      ".coderabbit.yaml"
     ]
   }
 }

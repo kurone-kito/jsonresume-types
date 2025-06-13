@@ -3,15 +3,12 @@ updates:
   - directory: /
     labels:
       - dependencies
-    package-ecosystem: npm
-    reviewers:
-      - kurone-kito
-    assignees:
-      - kurone-kito
+    package-ecosystem: github-actions
     schedule:
       interval: monthly
-registries:
-  npm-github:
-    token: ${{ secrets.NPM_TOKEN }}
-    type: npm-registry
-    url: https://registry.npmjs.org
+  - directory: /
+    labels:
+      - dependencies
+    package-ecosystem: npm
+    schedule:
+      interval: monthly

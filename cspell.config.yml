@@ -3,8 +3,6 @@ cache:
   cacheLocation: node_modules/.cache/cspell/.cspell.cache
   cacheStrategy: metadata
   useCache: true
-ignorePaths:
-  - pnpm-lock.yaml
 import:
-  - '@kurone-kito/cspell-config/cspell.config.json'
+  - '@kurone-kito/cspell-config'
 version: '0.2'

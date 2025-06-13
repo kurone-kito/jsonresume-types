@@ -19,38 +19,44 @@
   "type": "module",
   "main": "index.d.ts",
   "types": "index.d.ts",
-  "files": [
-    "index.d.ts"
-  ],
+  "files": ["index.d.ts"],
   "scripts": {
     "build": "json2ts -i node_modules/resume-schema/schema.json -o index.d.ts",
     "clean": "rimraf -g \"*.d.ts\" \"*.tgz\" \"node_modules/.cache/**/*\"",
-    "cspell": "cspell lint --no-progress --show-suggestions -u \"./**/*\"",
+    "lint": "pnpm run \"/lint:.+:check/\"",
+    "lint:biome:check": "biome check",
+    "lint:biome:fix": "biome check --write",
+    "lint:cspell:check": "cspell lint --no-progress --show-suggestions -u \"./**/*\"",
+    "lint:fix": "pnpm run lint:cspell:check && pnpm run \"/lint:.+:fix/\"",
+    "lint:markdown:check": "markdownlint-cli2 \"**/*.md\"",
+    "lint:markdown:fix": "markdownlint-cli2 --fix \"**/*.md\"",
     "prepack": "npm run -s clean && npm run -s build",
     "prepare": "husky install",
-    "prettier": "prettier --cache --log-level=warn \"./**/*\"",
-    "prettier:check": "npm run -s prettier -- -cu",
-    "prettier:fix": "npm run -s prettier -- -uw",
-    "test": "npm run -s cspell && npm run -s prettier:check"
+    "test": "pnpm run lint"
   },
-  "prettier": "@kurone-kito/prettier-config",
   "devDependencies": {
-    "@commitlint/cli": "^17.8.0",
-    "@commitlint/config-conventional": "^17.8.0",
-    "@cspell/cspell-types": "^7.3.8",
-    "@kurone-kito/cspell-config": "^0.7.6",
-    "@kurone-kito/prettier-config": "^0.7.6",
-    "cspell": "^7.3.8",
-    "husky": "^8.0.3",
+    "@biomejs/biome": "^1.9.4",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@cspell/cspell-types": "^9.0.2",
+    "@kurone-kito/biome-config": "^0.19.0",
+    "@kurone-kito/commitlint-config": "^0.19.0",
+    "@kurone-kito/cspell-config": "^0.19.0",
+    "@kurone-kito/lint-staged-config": "^0.19.0",
+    "@kurone-kito/markdownlint-config": "^0.19.0",
+    "@kurone-kito/typescript-config": "^0.19.0",
+    "cspell": "^9.0.2",
+    "husky": "^9.1.7",
     "json-schema-to-typescript": "^13.1.1",
-    "lint-staged": "^15.0.1",
-    "prettier": "^3.0.3",
+    "lint-staged": "^16.1.0",
+    "markdownlint-cli2": "^0.18.1",
     "resume-schema": "^1.0.0",
-    "rimraf": "^5.0.5"
+    "rimraf": "^6.0.1",
+    "typescript": "~5.8.3"
   },
   "packageManager": "pnpm@10.12.1+sha512.f0dda8580f0ee9481c5c79a1d927b9164f2c478e90992ad268bbb2465a736984391d6333d2c327913578b2804af33474ca554ba29c04a8b13060a717675ae3ac",
   "engines": {
-    "node": ">=18.18"
+    "node": "^20.11 || ^22 || >=24"
   },
   "publishConfig": {
     "access": "public"

@@ -1,0 +1,4 @@
+ignores:
+  - '**/node_modules/**/*'
+  - .github/CODE_OF_CONDUCT*
+  - node_modules/**/*
