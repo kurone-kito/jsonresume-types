@@ -32,7 +32,7 @@
     "lint:markdown:fix": "markdownlint-cli2 --fix \"**/*.md\"",
     "prepack": "npm run -s clean && npm run -s build",
     "prepare": "husky install",
-    "test": "pnpm run lint"
+    "test": "tsc --noEmit"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
