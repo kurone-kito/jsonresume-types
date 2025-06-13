@@ -21,7 +21,7 @@
   "types": "index.d.ts",
   "files": ["index.d.ts"],
   "scripts": {
-    "build": "json2ts -i node_modules/resume-schema/schema.json -o index.d.ts",
+    "build": "json2ts -i node_modules/@jsonresume/schema/schema.json -o index.d.ts",
     "clean": "rimraf -g \"*.d.ts\" \"*.tgz\" \"node_modules/.cache/**/*\"",
     "lint": "pnpm run \"/lint:.+:check/\"",
     "lint:biome:check": "biome check",
@@ -39,6 +39,7 @@
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@cspell/cspell-types": "^9.0.2",
+    "@jsonresume/schema": "^1.2.1",
     "@kurone-kito/biome-config": "^0.19.0",
     "@kurone-kito/commitlint-config": "^0.19.0",
     "@kurone-kito/cspell-config": "^0.19.0",
@@ -47,10 +48,9 @@
     "@kurone-kito/typescript-config": "^0.19.0",
     "cspell": "^9.0.2",
     "husky": "^9.1.7",
-    "json-schema-to-typescript": "^13.1.1",
+    "json-schema-to-typescript": "^15.0.4",
     "lint-staged": "^16.1.0",
     "markdownlint-cli2": "^0.18.1",
-    "resume-schema": "^1.0.0",
     "rimraf": "^6.0.1",
     "typescript": "~5.8.3"
   },
