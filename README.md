@@ -1,5 +1,11 @@
 # 📦 `@kurone-kito/jsonresume-types`
 
+![NPM Version](https://img.shields.io/npm/v/%40kurone-kito%2Fjsonresume-types)
+![Node Current](https://img.shields.io/node/v/%40kurone-kito%2Fjsonresume-types)
+![NPM Last Update](https://img.shields.io/npm/last-update/%40kurone-kito%2Fjsonresume-types)
+![NPM Downloads](https://img.shields.io/npm/dy/%40kurone-kito%2Fjsonresume-types)
+![npms.io](https://img.shields.io/npms-io/final-score/%40kurone-kito/jsonresume-types)
+
 TypeScript type definition for [JSON Resume](http://jsonresume.org)
 
 ## Pros
