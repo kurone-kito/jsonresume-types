@@ -14,16 +14,18 @@ jobs:
       INVALID_DUMMY_TOKEN: invalid-token
     steps:
       - name: Stages the pushed branch
-        uses: actions/checkout@v3
-      - name: Prepare the Node.js environment
-        uses: actions/setup-node@v3
+        uses: actions/checkout@v7
+      - name: Setup the pnpm
+        uses: pnpm/action-setup@v6
         with:
-          cache: ${{ !env.ACT && 'npm' || '' }}
+          run_install: false
+      - name: Prepare the Node.js environment
+        uses: actions/setup-node@v6
+        with:
+          cache: ${{ !env.ACT && 'pnpm' || '' }}
           node-version-file: .node-version
-      - name: set npm config
-        run: npm config set unsafe-perm true
       - name: Resolve the dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Build and release for NPM
         uses: JS-DevTools/npm-publish@v2
         with:
