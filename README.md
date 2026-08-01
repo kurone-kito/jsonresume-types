@@ -16,9 +16,9 @@ TypeScript type definition for [JSON Resume](http://jsonresume.org)
 ## System requirement
 
 - Node.js: Any of the following versions
-  - Iron LTS (`^20.11.x`)
-  - Jod LTS `^22.x.x` or
-  - Latest `>=24.x.x`
+  - Jod LTS (`^22.23.1`)
+  - `^24.2.0` or
+  - Latest (`>=26.0.0`)
 
 ## Usage
 
