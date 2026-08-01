@@ -262,6 +262,20 @@ pnpm run clean
 - **CI integration**: the build/lint/test/pack sequence runs in
   `.github/workflows/`.
 
+## IDD Workflow
+
+This project uses Issue-Driven Development (IDD) with parallel AI
+agents. Start with [docs/idd-workflow.md](../docs/idd-workflow.md) for
+the cross-agent entry path and phase routing. See
+[docs/idd-policy.md](../docs/idd-policy.md) for the policies this
+repository selected, including the `copilot-advisory` PR review
+profile, `fully_autonomous_merge` merge policy, and `fast-agent-resolve`
+review-thread resolution.
+
+Before starting IDD work, open
+`.github/instructions/idd-overview-core.instructions.md`. Open the
+routed phase file manually when the current step changes.
+
 ## Guardrails
 
 - **Do not** modify community documents (CODE_OF_CONDUCT, CONTRIBUTING)

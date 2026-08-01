@@ -64,6 +64,19 @@ A `.gitmessage` template is available at the repository root.
 Write user-facing, lowercase subjects, keep them under 72 characters,
 and split unrelated changes into separate atomic commits.
 
+## IDD Workflow
+
+This project uses Issue-Driven Development (IDD) with parallel AI
+agents. Start with [docs/idd-workflow.md](docs/idd-workflow.md) for the
+cross-agent entry path and phase routing. See
+[docs/idd-policy.md](docs/idd-policy.md) for the policies this
+repository selected (merge policy, review profile, claim timing, and
+the rest).
+
+Before starting IDD work, open
+`.github/instructions/idd-overview-core.instructions.md`. Open the routed
+phase file manually when the current step changes.
+
 ## Canonical reference
 
 The full, Copilot-first project guidance lives in

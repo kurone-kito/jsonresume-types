@@ -1,3 +1,5 @@
+allowBuilds:
+  '@kurone-kito/idd-skill@https://codeload.github.com/kurone-kito/idd-skill/tar.gz/f0b59fa5ac33f68753f0d05218bcdfda9dd899b5': true
 gitChecks: false
 ignoreWorkspaceRootCheck: true
 linkWorkspacePackages: true
