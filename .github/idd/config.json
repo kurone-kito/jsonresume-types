@@ -34,5 +34,8 @@
   },
   "autopilotSuitability": {
     "floor": 3
+  },
+  "worktreeGuard": {
+    "enabled": true
   }
 }

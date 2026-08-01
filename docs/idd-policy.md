@@ -78,6 +78,46 @@ confirmation of which prefix actually applies here.
 - **`issueAuthoring.maxClarificationRounds`**: `3` (default)
 - **`issueAuthoring.authoringLabelName`**: `status:authoring` (default)
 
+## Worktree Guard
+
+**Status**: `worktreeGuard.enabled: true`. The `.githooks/pre-commit` and
+`.githooks/pre-push` hooks refuse a commit or push made from the **primary**
+worktree while HEAD is on an implementation branch (`issue/*` or
+`roadmap-audit/*`) -- B1 requires that work to live in a sibling worktree.
+
+**One-time local wiring** (per clone -- `core.hooksPath` is local and
+uncommitted):
+
+```sh
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-commit .githooks/pre-push
+```
+
+**Fresh-clone caveat**: `worktreeGuard.enabled: true` alone enforces nothing.
+A coding agent, ephemeral container, or throwaway checkout starts unwired and
+silently unguarded until the command above runs. Re-run it at the start of
+every task rather than assuming a previous session's local config survived.
+
+**Enabled-but-inert finding**: `idd-doctor` reports this specific finding when
+`worktreeGuard.enabled` is `true` but `core.hooksPath` is not pointed at
+`.githooks` in the current checkout. That finding is the signal the setup
+step above did not run -- not a false positive to suppress. In practice this
+is the common steady state: `core.hooksPath` also drives this repository's
+Husky-managed `lint-staged`/`commitlint` hooks (`.husky/pre-commit`,
+`.husky/commit-msg`), and `pnpm install`'s `prepare` script resets
+`core.hooksPath` back to Husky's directory on every install. Wiring the
+worktree guard therefore trades away Husky's git-level enforcement for the
+duration it stays wired; re-running `pnpm install` (or the wiring command
+again after it) switches `core.hooksPath` back. Neither this repository nor
+upstream `idd-skill` (which also ships `worktreeGuard.enabled: true` but
+keeps `core.hooksPath` on Husky day to day) resolves this tension by chaining
+the two hook sets -- treat the worktree guard as a manually-invoked check
+around worktree-sensitive operations, not a permanently co-resident hook.
+
+**Intentional bypass**: `--no-verify` on `git commit` / `git push` is the
+single-commit escape hatch for a deliberate exception, so it should never be
+mistaken for a broken hook.
+
 ## IDD Labels
 
 Distributed defaults: `roadmap`, `status:blocked-by-human`,

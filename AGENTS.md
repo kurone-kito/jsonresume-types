@@ -17,6 +17,9 @@ immediately, without depending on a redirect.
 - Lint and auto-fix: `pnpm run lint:fix`
 - Test (type-checks the generated `index.d.ts`): `pnpm run test`
 - Clean: `pnpm run clean`
+- Wire the IDD worktree guard (re-run at the start of every task --
+  `core.hooksPath` is local and does not survive a fresh clone):
+  `git config core.hooksPath .githooks && chmod +x .githooks/pre-commit .githooks/pre-push`
 
 ## Immediate rules
 

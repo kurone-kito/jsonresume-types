@@ -253,6 +253,17 @@ if `index.d.ts` is stale or missing.
 pnpm run clean
 ```
 
+### Wiring the IDD worktree guard
+
+```sh
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-commit .githooks/pre-push
+```
+
+`core.hooksPath` is local and does not survive a fresh clone, so re-run
+this at the start of every task rather than assuming a previous
+session's local config is still in effect.
+
 ## Testing strategy
 
 - **What "test" verifies**: that the schema-generated `index.d.ts`
