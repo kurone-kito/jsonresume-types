@@ -57,11 +57,26 @@ are the same set; no separate merge-only actor is configured.
 
 ## Issue-Authoring Companion
 
-**Status**: `installed` (confirmed decision; physical installation into
-`.claude/skills/` and `.github/skills/` is delivered by the sibling track #33,
-not this import)
+**Status**: `installed`, in both `.claude/skills/issue-authoring/` and
+`.github/skills/issue-authoring/` -- byte-identical copies (verified with
+`diff -r`), so either a Claude Code session or a Copilot-family runtime can
+draft IDD-ready issues.
+
+**Two-copy layout**: the two directories must stay byte-identical. Any future
+refresh from upstream must update both in the same change. The canonical
+source is upstream `kurone-kito/idd-skill`'s `skills/issue-authoring/`, not
+either local copy -- treat both local copies as installed artifacts, not the
+place to make original edits.
+
+**Prefix-first rule**: an installed bundle must resolve this repository's
+marker prefix, `jsonresume-types`, and must never fall back to upstream's own
+`idd-skill` prefix. The bundle's own reference docs (`references/contract.md`,
+`references/draft-patterns.md`) already warn against that fallback in prose
+that travels verbatim with the copy; this section is the repository-local
+confirmation of which prefix actually applies here.
 
 - **`issueAuthoring.maxClarificationRounds`**: `3` (default)
+- **`issueAuthoring.authoringLabelName`**: `status:authoring` (default)
 
 ## IDD Labels
 
