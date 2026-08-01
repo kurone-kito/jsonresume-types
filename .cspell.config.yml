@@ -20,6 +20,7 @@ words:
   - pytest
   - qwen
   - toctou
+  - unconverged
   - undispositioned
   - unioned
   - unpushed

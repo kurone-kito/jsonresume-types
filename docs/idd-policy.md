@@ -118,6 +118,32 @@ around worktree-sensitive operations, not a permanently co-resident hook.
 single-commit escape hatch for a deliberate exception, so it should never be
 mistaken for a broken hook.
 
+## Advisory-Convergence Required Check
+
+**Status**: registered. `idd-advisory-convergence` is a required status check
+on the default branch's classic branch protection
+(`strict: true`, `enforce_admins: true` -- the check applies to admin merges
+too, including a trusted merge-capable session's own). Verify with:
+
+```sh
+gh api repos/kurone-kito/jsonresume-types/branches/main/protection/required_status_checks
+```
+
+Two behaviors to expect, both by design:
+
+- The check **shows as failing** until the advisory reviewer reviews the
+  current HEAD -- GitHub Actions has no non-failing "pending" state.
+- A stale review (one that predates the current HEAD, e.g. after a
+  force-push-free follow-up commit) reads as unconverged, not merely
+  outdated; re-request review or push a change that prompts a fresh one.
+
+**Waiver mode**: intentionally left off. `ciGate.externalCheckWaivers.mode`
+is unset in `.github/idd/config.json`, and `idd-advisory-convergence` is not
+listed under `ciGate.externalChecks.waivable`. A stuck advisory-convergence
+check therefore has no maintainer-waiver escape path -- the only way through
+is a fresh converged review. Revisit this decision if the `24h` default
+`advisoryWait.convergenceDeadline` proves too tight in practice.
+
 ## IDD Labels
 
 Distributed defaults: `roadmap`, `status:blocked-by-human`,
