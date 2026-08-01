@@ -151,6 +151,35 @@ check therefore has no maintainer-waiver escape path -- the only way through
 is a fresh converged review. Revisit this decision if the `24h` default
 `advisoryWait.convergenceDeadline` proves too tight in practice.
 
+## Known `idd-doctor` Warnings
+
+`idd-doctor --strict` reports these findings as of the #37 import
+verification pass, each an intentional, explained divergence rather than an
+unresolved defect:
+
+- **`review policy signal not found in docs or entry files`** -- upstream
+  check bug, not a real gap. `idd-doctor.mts` searches the corpus for the
+  literal string `'copilot advisory'` (a space) instead of `'copilot-advisory'`
+  (a hyphen, the actual policy vocabulary used everywhere else, including this
+  document's own [PR Review Policy](#pr-review-policy) section and
+  `.github/idd/config.json`'s `reviewPolicy` field). The check can never match
+  as currently written; it is not this repository's job to carry a local
+  patch for an upstream script bug.
+- **`post-merge cleanup backlog`** -- predates the IDD import. The PRs the
+  warning lists (#47-#62) merged before the F4 cleanup-evidence marker
+  convention existed in this repository (before #32), so none of them carry
+  it. This repository does not run the optional server-side
+  `post-merge-cleanup.yml` workflow (upstream ships it only in the
+  `idd-skill` source repository itself, not the distributed template), so
+  the marker is posted only when an agent runs F4 manually going forward.
+  The backlog will not grow further; it will not shrink retroactively either
+  unless someone runs `idd-audit-pr-cleanup --pr <N> --apply --skip-claim-check`
+  against each listed PR.
+- **`release-tag drift`** -- out of scope for the IDD import. Cutting a new
+  release is roadmap #46's concern (`Roadmap: restore the release pipeline
+  and the package's quality gates`), not #38's. This document does not track
+  release cadence.
+
 ## IDD Labels
 
 Distributed defaults: `roadmap`, `status:blocked-by-human`,
