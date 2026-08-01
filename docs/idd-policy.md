@@ -123,16 +123,23 @@ mistaken for a broken hook.
 **Status**: registered. `idd-advisory-convergence` is a required status check
 on the default branch's classic branch protection
 (`strict: true`, `enforce_admins: true` -- the check applies to admin merges
-too, including a trusted merge-capable session's own). Verify with:
+too, including a trusted merge-capable session's own). Verify both together
+with:
 
 ```sh
-gh api repos/kurone-kito/jsonresume-types/branches/main/protection/required_status_checks
+gh api repos/kurone-kito/jsonresume-types/branches/main/protection \
+  --jq '{strict: .required_status_checks.strict, enforce_admins: .enforce_admins.enabled, contexts: .required_status_checks.contexts}'
 ```
+
+(The narrower `.../protection/required_status_checks` endpoint only reports
+`strict` and `contexts`; it omits `enforce_admins`.)
 
 Two behaviors to expect, both by design:
 
 - The check **shows as failing** until the advisory reviewer reviews the
-  current HEAD -- GitHub Actions has no non-failing "pending" state.
+  current HEAD. The workflow's own script always exits pass or fail -- it has
+  no separate pending outcome -- so the check stays red rather than sitting
+  in an in-progress state until convergence.
 - A stale review (one that predates the current HEAD, e.g. after a
   force-push-free follow-up commit) reads as unconverged, not merely
   outdated; re-request review or push a change that prompts a fresh one.
