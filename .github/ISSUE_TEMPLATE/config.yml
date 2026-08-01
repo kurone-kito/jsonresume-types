@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: 🇬🇧 Read the contribution guide first
-    url: https://github.com/kurone-kito/jsonresume-types/blob/master/.github/CONTRIBUTING.md
+    url: https://github.com/kurone-kito/jsonresume-types/blob/main/.github/CONTRIBUTING.md
     about: Please read this before filing an issue.
   - name: 🇯🇵 投稿の前に下記のドキュメントを一読ください
-    url: https://github.com/kurone-kito/jsonresume-types/blob/master/.github/CONTRIBUTING.ja.md
+    url: https://github.com/kurone-kito/jsonresume-types/blob/main/.github/CONTRIBUTING.ja.md
     about: Issueを立てる前にお読みください。
   - name: 🇨🇳 首先，阅读以下文档
-    url: https://github.com/kurone-kito/jsonresume-types/blob/master/.github/CONTRIBUTING.zh.md
+    url: https://github.com/kurone-kito/jsonresume-types/blob/main/.github/CONTRIBUTING.zh.md
     about: 在提交问题之前请阅读此文档。

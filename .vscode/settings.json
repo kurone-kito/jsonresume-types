@@ -24,7 +24,7 @@
     "**/.husky*": true,
     "**/node_modules/**/*": true
   },
-  "git.branchProtection": ["master"],
+  "git.branchProtection": ["main"],
   "search.exclude": {
     "**/*.d.ts": true,
     "**/.husky*": true,
