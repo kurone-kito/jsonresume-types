@@ -1,9 +1,0 @@
-### Node ###
-# Husky
-.husky/_
-
-# Ignorefiles
-.*ignore
-
-# TypeScript v1 declaration files
-*.d.ts

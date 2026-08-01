@@ -1,0 +1,56 @@
+name: 🐛 Bug report
+description: Create a report to help us improve
+labels: bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+        Before you continue filling out this report, please take a moment to check that your bug has not been [already reported on GitHub](https://github.com/kurone-kito/jsonresume-types/search?q=is%3Aissue&type=issues) 🙌
+
+  - type: textarea
+    id: overview
+    attributes:
+      label: Bug Overview
+      description: A clear and concise overview of the bug.
+      placeholder: When I do "X", "Y" happens instead of "Z".
+    validations:
+      required: true
+
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+      placeholder: When I do "X", I expect "Z" to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce the Bug
+      description: Detail the series of steps required to reproduce the bug.
+      placeholder: When I run "X" using [...], "X" fails with "Y" error message. If I check the terminal outputs and/or logs, I see the following info.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: Please provide details about your environment.
+      value: |
+        - Version of this package: [e.g. 0.6.0/commit hash]
+        - Node.js version: [e.g. 22.23.1]
+        - Package manager: [e.g. pnpm 11.15.1]
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here.
+      placeholder: Feel free to add any other context/information/screenshots/etc... that you think might be relevant to this issue in here.

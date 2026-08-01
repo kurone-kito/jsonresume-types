@@ -1,5 +1,11 @@
 # 📦 `@kurone-kito/jsonresume-types`
 
+![NPM Version](https://img.shields.io/npm/v/%40kurone-kito%2Fjsonresume-types)
+![Node Current](https://img.shields.io/node/v/%40kurone-kito%2Fjsonresume-types)
+![NPM Last Update](https://img.shields.io/npm/last-update/%40kurone-kito%2Fjsonresume-types)
+![NPM Downloads](https://img.shields.io/npm/dy/%40kurone-kito%2Fjsonresume-types)
+![npms.io](https://img.shields.io/npms-io/final-score/%40kurone-kito/jsonresume-types)
+
 TypeScript type definition for [JSON Resume](http://jsonresume.org)
 
 ## Pros
@@ -9,7 +15,10 @@ TypeScript type definition for [JSON Resume](http://jsonresume.org)
 
 ## System requirement
 
-- Node.js >= v18.18
+- Node.js: Any of the following versions
+  - Jod LTS (`^22.23.1`)
+  - `^24.2.0` or
+  - Latest (`>=26.0.0`)
 
 ## Usage
 
@@ -17,13 +26,21 @@ TypeScript type definition for [JSON Resume](http://jsonresume.org)
 npm install -D @kurone-kito/jsonresume-types
 ```
 
-```TypeScript
-import { ResumeSchema } from '@kurone-kito/jsonresume-types';
+```ts
+import type { ResumeSchema } from '@kurone-kito/jsonresume-types';
 
 export const render = (json: ResumeSchema) => {
   // ...
 };
 ```
+
+## Contributing
+
+Welcome to contribute to this repository! For more details,
+please refer to [CONTRIBUTING.md](.github/CONTRIBUTING.md).
+
+The declaration file `index.d.ts` is generated at build time. Do not commit this
+file to the repository; run `pnpm run build` to create it when needed.
 
 ## License
 

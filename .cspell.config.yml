@@ -4,5 +4,7 @@ cache:
   cacheStrategy: metadata
   useCache: true
 import:
-  - '@kurone-kito/cspell-config/cspell.config.json'
+  - '@kurone-kito/cspell-config'
 version: '0.2'
+words:
+  - npms.io
