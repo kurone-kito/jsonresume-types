@@ -23,6 +23,10 @@
     "profile": "package-manager"
   },
   "maintainerApprovalActorPolicy": "owners-and-maintainers-only",
+  "issueAuthoring": {
+    "maxClarificationRounds": 3,
+    "authoringLabelName": "status:authoring"
+  },
   "issueScope": "roadmap-first",
   "orphanFirstPolicy": "none",
   "advisoryWait": {
