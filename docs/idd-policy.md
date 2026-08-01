@@ -158,13 +158,18 @@ verification pass, each an intentional, explained divergence rather than an
 unresolved defect:
 
 - **`review policy signal not found in docs or entry files`** -- upstream
-  check bug, not a real gap. `idd-doctor.mts` searches the corpus for the
-  literal string `'copilot advisory'` (a space) instead of `'copilot-advisory'`
-  (a hyphen, the actual policy vocabulary used everywhere else, including this
-  document's own [PR Review Policy](#pr-review-policy) section and
-  `.github/idd/config.json`'s `reviewPolicy` field). The check can never match
-  as currently written; it is not this repository's job to carry a local
-  patch for an upstream script bug.
+  check bug, not a real gap. `idd-doctor.mts`'s review-policy-signal check
+  does a plain corpus substring search for one of five literal signal
+  strings. One of those five is this repository's own review-profile name,
+  but space-joined instead of hyphenated the way the actual policy
+  vocabulary is written everywhere else -- this document's own
+  [PR Review Policy](#pr-review-policy) section above and
+  `.github/idd/config.json`'s `reviewPolicy` field both use the hyphenated
+  form. That one-character difference is why the check fails to match; it is
+  not this repository's job to carry a local patch for an upstream script
+  bug. (Deliberately not spelling out the exact space-joined search string
+  in this note: doing so would make this very sentence satisfy the buggy
+  search, which is the wrong reason for the warning to disappear.)
 - **`post-merge cleanup backlog`** -- predates the IDD import. The PRs the
   warning lists (#47-#62) merged before the F4 cleanup-evidence marker
   convention existed in this repository (before #32), so none of them carry
