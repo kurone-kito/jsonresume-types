@@ -1,0 +1,49 @@
+name: IDD advisory-convergence gate
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || inputs.pr_number }}
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR number to re-check (e.g. after posting a maintainer waiver)
+        required: true
+        type: number
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+jobs:
+  idd-advisory-convergence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Stages the trusted default branch
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Setup the pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - name: Prepare the Node.js environment
+        uses: actions/setup-node@v6
+        with:
+          cache: pnpm
+          node-version-file: .node-version
+      - env:
+          HUSKY: 0
+        name: Install the dependencies
+        run: pnpm install --frozen-lockfile
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        name: Run the advisory-convergence check
+        run: pnpm run idd:advisory-convergence --pr "$PR_NUMBER" --assert
