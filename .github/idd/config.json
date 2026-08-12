@@ -1,6 +1,6 @@
 {
   "$schema": "https://kurone-kito.github.io/idd-skill/schemas/policy.schema.json",
-  "iddVersion": "0.4.0",
+  "iddVersion": "0.6.0",
   "markerPrefix": "jsonresume-types",
   "mergePolicy": "fully_autonomous_merge",
   "reviewPolicy": "copilot-advisory",
@@ -30,7 +30,8 @@
   "issueScope": "roadmap-first",
   "orphanFirstPolicy": "none",
   "advisoryWait": {
-    "convergenceScope": "all-prs"
+    "convergenceScope": "all-prs",
+    "exemptBotAuthoredPrs": true
   },
   "autopilotSuitability": {
     "floor": 3
