@@ -590,9 +590,15 @@ verification shape, not a rigid edit order.
 
 ## Publication boundary
 
-If the user asked for drafts only, stop after reporting the issue set,
-assumptions, and non-ready buckets.
+Publish each `ready` body directly under the authoring hold once it
+passes the mechanical gate and the critique pass — this is the default
+outcome of drafting, and it needs no separate publish approval. Stop
+after publishing (and applying/creating the authoring label) unless
+the user also separately requests release from the authoring hold —
+release is what authorizes starting the IDD execution loop, so a
+request phrased as "start the IDD execution loop" counts as that same
+release request, not a separate path around it.
 
-If the user explicitly asked to publish issues, create or update them
-and then stop unless they also separately asked to start the IDD
-execution loop.
+If the user asked for drafts only (a preview before anything is
+created), honor that instead: stop after reporting the issue set,
+assumptions, and non-ready buckets, without publishing.
