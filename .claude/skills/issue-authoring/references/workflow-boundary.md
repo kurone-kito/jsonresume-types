@@ -1,23 +1,27 @@
 # Workflow Boundary
 
-This bundle handles pre-approval issue drafting only.
+This bundle handles issue authoring end to end under the authoring
+hold: drafting and publishing are one continuous stage with no
+per-step approval, and release from the authoring hold is the single
+approval boundary that hands off to IDD execution.
 
-## Handoff sequence
+## Two-stage contract
 
-The issue-authoring bundle fits into a three-phase handoff:
+### Stage 1: Author-and-publish (under the hold)
 
-### Phase 1: Drafting (this bundle)
-
-- Skill drafts issues in the target repository
-- Issues move through readiness buckets: `deferred` → `ready` or
-  → escalation bucket (`needs-decision`, `blocked-by-human`, `out-of-scope`)
-- User approves the issue set before any publication
-
-### Phase 2: Publishing (user-authorized handoff)
-
-- User explicitly asks for publication
-- Bundled skill resolves the authoring label from
-  `issueAuthoring.authoringLabelName`, defaulting to `status:authoring`
+- Skill drafts issues in the target repository. Each candidate moves
+  through the readiness buckets: `deferred` → `ready` or an escalation
+  bucket (`needs-decision`, `blocked-by-human`, `out-of-scope`)
+- Before publishing a `ready` body, bundled skill runs the mechanical
+  `audit-authored-issue` gate and the critique pass (both unchanged
+  and still mandatory)
+- Bundled skill then publishes directly under the configured authoring
+  label (`issueAuthoring.authoringLabelName`, defaulting to
+  `status:authoring`) — **no prior user approval of the drafted body
+  is required**. If the current request asked only for a preview
+  (drafts to look at before anything is created), bundled skill stops
+  after reporting the proposed set instead of publishing; publishing
+  is otherwise the default outcome of drafting, not an opt-in step
 - If the label does not exist in the target repository, bundled skill
   creates it with `gh label create` before first use; label creation or
   application failure blocks publishing
@@ -30,31 +34,36 @@ The issue-authoring bundle fits into a three-phase handoff:
   issue before stopping; deletion needs admin permission the authoring
   agent typically lacks (and `docs/permissions.md` forbids for normal IDD),
   so it is not the default path
-- User verifies the published issues look correct
-- Bundled skill removes the authoring label from all published issues only
-  after the full issue set is published, the user confirms the result, and
-  the user explicitly requests release from the authoring hold for IDD
-  execution
-- If publishing is interrupted before release, the authoring label remains
-  in place as the IDD discover guard signal
-- Published issues remain on hold until user explicitly requests IDD execution
+- **The held issue IS the draft.** In-place body edits, roadmap
+  relationship wiring (children first, then roadmaps once the real
+  issue numbers exist), and re-lint of already-published bodies all
+  happen on the published issue, under the same label — not in a
+  session-local buffer that a later session cannot see
+- **Interrupted-session guard.** If a Stage 1 session stops before the
+  set is fully wired and stable, the authoring label stays on every
+  issue it already published. The label alone is what keeps Discover
+  from selecting an unfinished set, so a later session (or the same
+  session, resumed) can find and finish the work with no extra
+  bookkeeping
 
-### Phase 3: Execution (separate IDD loop)
+### Stage 2: Release (the single approval boundary)
 
-- User explicitly asks to start the IDD execution loop
-- Target repository's `.github/instructions/idd-discover.instructions.md`
-  takes over
-- IDD discover phase runs A0-T/A0-O/A1-A4.5 gates
-- Suitable issues are claimed, worked, and merged
-
-**Approval boundaries**:
-
-- **After drafting** (Phase 1 → Phase 2): User must explicitly approve the
-  issue set
-- **After publishing** (Phase 2 → Phase 3): User must explicitly request IDD
-  execution
-- **No implicit progression**: Each handoff requires explicit user request.
-  The bundle must not auto-transition to publishing or execution.
+- The user's explicit hold-release request is the only approval this
+  bundle's workflow requires, and it authorizes IDD execution for the
+  released issues
+- Before removing the authoring label, bundled skill runs a release
+  checklist that absorbs the rigor of the dropped middle step:
+  - every child issue is referenced from its parent roadmap's
+    `## Tracks` list
+  - no unsubstituted placeholder (a leftover `#TBD`, template
+    stand-in, or similar) remains in any published body
+  - the `audit-authored-issue` linter (or its manual fallback under
+    `instructions-only`) is green on every published body in the set
+- Bundled skill removes the authoring label from all published issues
+  only after the release checklist passes and the user's release
+  request is explicit
+- Release remains a human action; nothing in this bundle auto-releases
+  a held issue set
 
 ## A4.5 Gate Timing
 
@@ -99,11 +108,16 @@ time and report the specific failure (unclear, invalid, duplicate).
 - start the Discover -> Claim -> Work loop implicitly
 - treat bundled references as a replacement for repository execution
   instructions
-- publish issues unless the user explicitly asked for publishing
+- publish a body that has not passed the mechanical
+  `audit-authored-issue` gate and the critique pass
+- remove the authoring label from any issue without an explicit
+  release request
 
 ## Handoff to execution
 
-After the user approves the issue set, wait for a separate request to
-publish the issues or start the IDD execution loop. Only then should
-the workflow hand off to the repository's normal entry file and routed
-`.github/instructions/*.instructions.md` phase files.
+Once the user's explicit release request removes the authoring label
+from every issue in the released set, execution is authorized: the
+repository's normal entry file and routed
+`.github/instructions/*.instructions.md` phase files (Discover, Claim,
+Work) may pick up the released issues. This bundle does not itself
+start that loop.

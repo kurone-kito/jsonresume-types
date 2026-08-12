@@ -841,7 +841,41 @@ Binding rules:
 Backfill is opportunistic and follows the same claim-state precondition
 as the suitability footer.
 
+## Authoring hold and release
+
+Issue authoring uses a two-stage contract: drafting and publishing
+happen together under an authoring hold; release from that hold is the
+only approval boundary.
+
+- **Stage 1 — author-and-publish.** Once a drafted `ready` body passes
+  the mechanical `audit-authored-issue` gate (see
+  [Mechanical pre-publish gate](#mechanical-pre-publish-gate)) and the
+  critique pass, publish it directly under the configured authoring
+  label (`issueAuthoring.authoringLabelName`, defaulting to
+  `status:authoring`) — no separate user approval of the drafted body
+  is required. The label doubles as the draft marker for the held
+  issue and the claim-suppression lock that keeps Discover from
+  selecting it: held issues ARE the drafts, so in-place edits, roadmap
+  relationship wiring, and re-lint of already-published bodies all
+  happen under that same lock. If a session is interrupted before the
+  set is fully wired, leave the label in place — that alone keeps
+  Discover from selecting the unfinished set until a later session
+  finishes the work.
+- **Stage 2 — release.** Before removing the authoring label, run a
+  release checklist: every child issue is referenced from its parent
+  roadmap's `## Tracks` list; no unsubstituted placeholder remains in
+  any published body; the `audit-authored-issue` linter (or its manual
+  fallback) is green on every published body in the set. Remove the
+  label only after that checklist passes and the user explicitly
+  requests release from the authoring hold. Release is a human action;
+  nothing in this bundle auto-releases a held issue set.
+
 ## Publication boundary
 
-Drafting issues does not authorize publishing them or starting the IDD
-execution loop unless the user explicitly asked for that next step.
+Publishing a drafted `ready` body under the authoring hold does not
+need a separate user approval once it passes the mechanical
+`audit-authored-issue` gate and the critique pass — see
+[Authoring hold and release](#authoring-hold-and-release) above for the
+full two-stage contract. Removing the authoring label and starting the
+IDD execution loop both require the user's explicit hold-release
+request; nothing else authorizes either.

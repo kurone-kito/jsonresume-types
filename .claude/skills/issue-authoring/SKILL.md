@@ -76,8 +76,12 @@ needs-decision, blocked-by-human, and out-of-scope.
    in the bundled contract, including the manual fallback for
    `instructions-only` installs with no helper runtime. Resolve every
    reported failure before treating the issue as ready.
-7. When the user explicitly authorizes publication, manage the authoring
-   label for each created or updated issue:
+7. Publish each `ready` drafted body directly under the authoring hold
+   once it passes the mechanical gate (step 6) and the critique pass
+   (the Intake and Clarification phase above) — no separate publish
+   approval is needed. Only skip publishing when the current request
+   explicitly asked for a preview instead. Manage the authoring label
+   for each created or updated issue:
    - resolve `issueAuthoring.authoringLabelName`, defaulting to
      `status:authoring`
    - create the label with `gh label create` before first use when the
@@ -90,20 +94,27 @@ needs-decision, blocked-by-human, and out-of-scope.
      before stopping; deletion needs admin permission the authoring
      agent typically lacks (and `docs/permissions.md` forbids for normal
      IDD), so it is not the default path
-   - remove the label from all published issues only after the full set is
-     published, the user confirms the result, and the user explicitly
-     requests release from the authoring hold for IDD execution
-   - leave the label in place if publishing is interrupted before release
-8. Stop at the approval boundary. Drafting issues does not authorize
-   publishing them or starting the IDD execution loop unless the user
-   explicitly asked for that.
+   - held issues under the label ARE the drafts: do in-place body
+     edits, roadmap relationship wiring, and re-lint of already-published
+     bodies on the published issue itself, under the same label
+   - if a session is interrupted before the set is fully wired, leave
+     the label in place — it alone keeps Discover from selecting the
+     unfinished set until a later session finishes the work
+   - remove the label from all published issues only after the release
+     checklist passes (every child referenced from its roadmap's
+     `## Tracks` list, no unsubstituted placeholders, linter green on
+     every published body) and the user explicitly requests release
+     from the authoring hold
+8. Stop at the single approval boundary: release. Publishing under the
+   hold does not by itself authorize starting the IDD execution loop —
+   only the user's explicit release request does.
 
 ## Reference Routing
 
 - For the bundled contract, output schemas, and discoverability guard:
   read [references/contract.md](references/contract.md).
-- For the bundled boundary between pre-approval drafting and the IDD
-  execution loop: read
+- For the bundled two-stage authoring/release contract and the
+  boundary with the IDD execution loop: read
   [references/workflow-boundary.md](references/workflow-boundary.md).
 - For concrete drafting patterns and example prompts: read
   [references/draft-patterns.md](references/draft-patterns.md).
