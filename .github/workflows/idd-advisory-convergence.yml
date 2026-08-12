@@ -20,8 +20,17 @@ permissions:
   issues: read
   pull-requests: read
 jobs:
+  # The job id `idd-advisory-convergence` is the literal check-run context
+  # consumed by the rerun helper, advisory-wait policy, the required-status-
+  # check entry on main's branch-protection Ruleset, and the external-check
+  # waiver selector. Do not rename it or add a job-level `name:` key (i.e.
+  # jobs.idd-advisory-convergence.name -- distinct from the workflow-level
+  # `name:` above) without updating every one of those consumers to match.
   idd-advisory-convergence:
-    runs-on: ubuntu-latest
+    # Falls back to today's ubuntu-latest unless the CI_RUNNER_LABEL
+    # repository variable is set (Settings > Secrets and variables >
+    # Actions > Variables) -- no behavior change until it's configured.
+    runs-on: ${{ vars.CI_RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - name: Stages the trusted default branch
