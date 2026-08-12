@@ -83,7 +83,7 @@
     "@kurone-kito/biome-config": "^0.23.0-alpha.1",
     "@kurone-kito/commitlint-config": "^0.23.0-alpha.1",
     "@kurone-kito/cspell-config": "^0.23.0-alpha.1",
-    "@kurone-kito/idd-skill": "github:kurone-kito/idd-skill#f0b59fa5ac33f68753f0d05218bcdfda9dd899b5",
+    "@kurone-kito/idd-skill": "github:kurone-kito/idd-skill#f16660486383ce710a0f33f49aa3331ddece93de",
     "@kurone-kito/lint-staged-config": "^0.23.0-alpha.1",
     "@kurone-kito/markdownlint-config": "^0.23.0-alpha.1",
     "@kurone-kito/typescript-config": "^0.22.0-alpha.9",
