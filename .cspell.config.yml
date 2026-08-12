@@ -12,19 +12,35 @@ words:
   - desync
   - desynced
   - esync
+  - GHEC
+  - GHES
+  - idd
   - isort
+  - kito
+  - kuron
+  - kurone
+  - kuroné
+  - minimizable
+  - ministral
   - npms.io
+  - nvmrc
   - onnx
   - pylint
   - pyproject
   - pytest
   - qwen
+  - rollup
   - toctou
+  - tsfile
   - unconverged
   - undispositioned
   - unioned
+  - unmigrated
+  - unmirrored
   - unpushed
   - unreplied
+  - unrouted
   - unscored
   - unwaived
   - waivable
+  - WHATWG
