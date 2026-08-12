@@ -1,0 +1,340 @@
+# Trust model: this workflow triggers on `pull_request_target`, which runs
+# with base-repository permissions and secrets even for pull requests from
+# forks. That is safe here only because all of the following hold, and any
+# future edit to this file must preserve them:
+#   - No unreviewed PR-head content is ever checked out: the sole
+#     `actions/checkout` step below carries no `ref:` override, so it
+#     resolves to the `pull_request_target` default -- the base branch's
+#     tip at event time. Because the job only proceeds when
+#     `merged == true`, that tip already includes this PR's own merge
+#     (a repository that merges via merge commits typically sees that
+#     merge commit itself) -- it is never the PR's own head SHA, and
+#     never content that has not already passed through the merge
+#     decision.
+#   - No PR-head code, workflow, or action is ever executed; nothing from
+#     the PR diff ever runs. Under `vendored-node` and `package-manager`,
+#     the cleanup-audit invocation names only a script or package this
+#     base branch already tracks or has already declared as a
+#     dependency. Under `package-manager` specifically, that base-branch
+#     content includes the repository's own declared install lifecycle
+#     (its lockfile-driven `npm ci` / `pnpm install --frozen-lockfile` /
+#     `yarn install --frozen-lockfile`) -- that is the adopter's own
+#     already-reviewed, already-merged dependency tree, not PR-head
+#     content, but it is a wider execution surface than this source
+#     repository's own dogfooded copy (which only ever runs its single
+#     tracked `scripts/audit-pr-cleanup.mjs`), so it is called out here
+#     explicitly. Under `ephemeral-npx` specifically, when the repository
+#     has not configured `helperRuntime.packageSpec`, the invocation
+#     falls back to fetching a **mutable** default archive URL
+#     (`https://codeload.github.com/kurone-kito/idd-skill/tar.gz/refs/heads/main`)
+#     over the network at run time -- not base-branch-tracked content and
+#     not a declared dependency either. This is a real, wider execution
+#     surface than the other profiles; adopters on `ephemeral-npx` should
+#     pin `helperRuntime.packageSpec` to a reviewed tarball or mirror URL
+#     (see docs/idd-helper-scripts.md's "Profile Wiring Surface" section)
+#     to close this gap.
+#   - The `pr_number` value (a `workflow_dispatch` number input, not
+#     strictly enforced as numeric for direct API dispatches) is passed
+#     through `env:` and referenced as a quoted shell variable, never
+#     interpolated directly into a `run:` script.
+#   - The `cleanup` job only runs when
+#     `github.event.pull_request.merged == true`, or via an explicit,
+#     human-triggered `workflow_dispatch` -- never against an open or
+#     unmerged pull request.
+#   - `permissions:` stays least-privilege: `contents: read`,
+#     `issues: write`, `pull-requests: write` -- no `contents: write` and
+#     no elevated or secret-bearing scopes.
+# If a future change adds a `ref:` override on the checkout step, downloads
+# or executes PR-head content, widens `permissions:`, or removes the
+# merged-only guard, re-review this trust model before merging that change.
+#
+# Profile resolution: unlike this source repository's own dogfooded copy
+# (kurone-kito/idd-skill's own `.github/workflows/post-merge-cleanup.yml`),
+# which always invokes the vendored-node `scripts/audit-pr-cleanup.mjs`
+# directly, this template copy resolves the cleanup-audit invocation
+# through the repository's configured `helperRuntime.profile`
+# (`.github/idd/config.json`, falling back to the legacy top-level
+# `idd-policy.json` filename with the same first-present-file precedence
+# idd-doctor.mjs's own resolver uses) -- see docs/idd-helper-scripts.md's
+# "Helper Runtime Profiles" section. Under `instructions-only` (no runnable
+# helper command exists for any profile), or when no profile can be
+# resolved at all, the audit and evidence-comment steps are skipped
+# entirely and nothing is posted: the agent's own F4 cleanup step in
+# idd-merge.instructions.md remains the canonical, mandatory contract in
+# every profile, including this one.
+name: Post-merge cleanup
+on:
+  pull_request_target:
+    types:
+      - closed
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR number to clean up
+        required: true
+        type: number
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+concurrency:
+  group: post-merge-cleanup-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Resolve helper-runtime profile
+        id: profile
+        run: |
+          # Fail-closed default, mirroring idd-doctor.mjs's
+          # resolveConfiguredHelperRuntime: an absent, unreadable, or
+          # invalid config -- or one that simply omits helperRuntime --
+          # resolves to instructions-only (no runnable command), never a
+          # guess at a runnable profile.
+          PROFILE="instructions-only"
+          PACKAGE_SPEC=""
+          for CANDIDATE in .github/idd/config.json idd-policy.json; do
+            if [ -f "$CANDIDATE" ]; then
+              if RESOLVED=$(jq -r '.helperRuntime.profile // empty' "$CANDIDATE" 2>/dev/null); then
+                case "$RESOLVED" in
+                  vendored-node | package-manager | ephemeral-npx | instructions-only)
+                    PROFILE="$RESOLVED"
+                    PACKAGE_SPEC=$(jq -r '.helperRuntime.packageSpec // empty' "$CANDIDATE" 2>/dev/null || echo "")
+                    ;;
+                esac
+              fi
+              # First present candidate file wins outright, valid or not
+              # -- never fall through to the legacy idd-policy.json name
+              # once the canonical file has been evaluated.
+              break
+            fi
+          done
+          echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
+          echo "package-spec=$PACKAGE_SPEC" >> "$GITHUB_OUTPUT"
+      - name: Setup Node.js
+        if: steps.profile.outputs.profile != 'instructions-only'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+      - name: Detect package manager
+        id: manager
+        if: steps.profile.outputs.profile == 'package-manager'
+        run: |
+          # Same precedence as helper-runtime-manifest.mts's own
+          # detector: an explicit package.json "packageManager" field
+          # wins, then lockfile presence (pnpm-lock.yaml, then
+          # package-lock.json, then yarn.lock), defaulting to npm when
+          # nothing else matches.
+          MANAGER=$(node -e "
+            const fs = require('node:fs');
+            let declared = '';
+            try {
+              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              declared = String(pkg.packageManager || '').split('@')[0];
+            } catch {
+              // No readable package.json: fall through to lockfile detection.
+            }
+            if (['npm', 'pnpm', 'yarn'].includes(declared)) {
+              console.log(declared);
+            } else if (fs.existsSync('pnpm-lock.yaml')) {
+              console.log('pnpm');
+            } else if (fs.existsSync('package-lock.json')) {
+              console.log('npm');
+            } else if (fs.existsSync('yarn.lock')) {
+              console.log('yarn');
+            } else {
+              console.log('npm');
+            }
+          ")
+          echo "manager=$MANAGER" >> "$GITHUB_OUTPUT"
+      - name: Install dependencies (package-manager profile)
+        if: steps.profile.outputs.profile == 'package-manager'
+        env:
+          MANAGER: ${{ steps.manager.outputs.manager }}
+        run: |
+          case "$MANAGER" in
+            pnpm)
+              corepack enable
+              pnpm install --frozen-lockfile
+              ;;
+            yarn)
+              corepack enable
+              yarn install --frozen-lockfile
+              ;;
+            *)
+              npm ci
+              ;;
+          esac
+      - name: Run F4 cleanup (server-side fallback)
+        id: cleanup
+        if: steps.profile.outputs.profile != 'instructions-only'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # workflow_dispatch's `pr_number` input is `type: number` in the
+          # UI, but that constraint is not strictly enforced for direct API
+          # dispatches, so route it through env: and reference it as a
+          # quoted shell variable rather than interpolating the `${{ }}`
+          # expression directly into the run: script.
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          PROFILE: ${{ steps.profile.outputs.profile }}
+          PACKAGE_SPEC: ${{ steps.profile.outputs.package-spec }}
+          MANAGER: ${{ steps.manager.outputs.manager }}
+        run: |
+          set +e
+          if [ -z "$PR_NUMBER" ]; then
+            echo "::error::PR_NUMBER is empty"
+            exit 1
+          fi
+          # FLAGS holds only fixed, non-attacker-controlled literal
+          # tokens -- unquoted word-splitting below is safe for it.
+          # PR_NUMBER is untrusted (a workflow_dispatch number input is
+          # not strictly enforced as numeric for direct API dispatches)
+          # and is always passed as its own separately quoted argument,
+          # never folded into a word-split string, so a crafted value
+          # cannot inject extra flags/args into the helper invocation.
+          FLAGS="--apply --skip-claim-check --format json"
+          case "$PROFILE" in
+            vendored-node)
+              # shellcheck disable=SC2086
+              JSON=$(node scripts/audit-pr-cleanup.mjs --pr "$PR_NUMBER" $FLAGS 2>cleanup-stderr.log)
+              ;;
+            package-manager)
+              case "$MANAGER" in
+                pnpm)
+                  # shellcheck disable=SC2086
+                  JSON=$(pnpm exec idd-audit-pr-cleanup --pr "$PR_NUMBER" $FLAGS 2>cleanup-stderr.log)
+                  ;;
+                yarn)
+                  # shellcheck disable=SC2086
+                  JSON=$(yarn idd-audit-pr-cleanup --pr "$PR_NUMBER" $FLAGS 2>cleanup-stderr.log)
+                  ;;
+                *)
+                  # npm requires a literal `--` before forwarded flags;
+                  # pnpm/yarn above do not.
+                  # shellcheck disable=SC2086
+                  JSON=$(npm exec idd-audit-pr-cleanup -- --pr "$PR_NUMBER" $FLAGS 2>cleanup-stderr.log)
+                  ;;
+              esac
+              ;;
+            ephemeral-npx)
+              SPEC="${PACKAGE_SPEC:-https://codeload.github.com/kurone-kito/idd-skill/tar.gz/refs/heads/main}"
+              # shellcheck disable=SC2086
+              JSON=$(npx --yes --package "$SPEC" idd-audit-pr-cleanup --pr "$PR_NUMBER" $FLAGS 2>cleanup-stderr.log)
+              ;;
+          esac
+          HELPER_EXIT=$?
+          set -e
+          # Prefer the helper's JSON report when it is parseable, even on
+          # non-zero exit (the helper writes the report then exits 1 when
+          # failed.length > 0, so the report is still authoritative).
+          PARSED_STATUS=""
+          if [ -n "$JSON" ]; then
+            PARSED_STATUS=$(printf '%s' "$JSON" | jq -r '.status // ""' 2>/dev/null || echo "")
+          fi
+          if [ -n "$PARSED_STATUS" ]; then
+            printf '%s\n' "$JSON" > cleanup-report.json
+            STATUS="$PARSED_STATUS"
+            APPLIED=$(printf '%s' "$JSON" | jq -r '(.applied // []) | length')
+            FAILED=$(printf '%s' "$JSON" | jq -r '(.failed // []) | length')
+            SKIPPED=$(printf '%s' "$JSON" | jq -r '(.skipped // []) | length')
+            BLOCKED=$(printf '%s' "$JSON" | jq -r '[(.skipped // [])[] | select(.isMinimized==false and .viewerCanMinimize==false)] | length')
+            if [ "$HELPER_EXIT" -ne 0 ]; then
+              echo "::warning::audit-pr-cleanup exited $HELPER_EXIT but emitted a valid JSON report; using helper status \"$STATUS\""
+            fi
+          else
+            echo "::warning::audit-pr-cleanup exited $HELPER_EXIT with no parseable JSON; posting helper-error evidence"
+            STATUS="helper-error"
+            APPLIED=0
+            FAILED=0
+            SKIPPED=0
+            BLOCKED=0
+          fi
+          {
+            echo "pr_number=$PR_NUMBER"
+            echo "status=$STATUS"
+            echo "applied=$APPLIED"
+            echo "failed=$FAILED"
+            echo "skipped=$SKIPPED"
+            echo "blocked=$BLOCKED"
+          } >> "$GITHUB_OUTPUT"
+      - name: Post cleanup evidence comment
+        if: steps.profile.outputs.profile != 'instructions-only'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.cleanup.outputs.pr_number }}
+          STATUS: ${{ steps.cleanup.outputs.status }}
+          APPLIED: ${{ steps.cleanup.outputs.applied }}
+          FAILED: ${{ steps.cleanup.outputs.failed }}
+          SKIPPED: ${{ steps.cleanup.outputs.skipped }}
+          BLOCKED: ${{ steps.cleanup.outputs.blocked }}
+        run: |
+          # Avoid duplicate evidence comments. Workflow-level concurrency
+          # only serialises this workflow's own runs; an agent F4 (or a
+          # maintainer rerunning workflow_dispatch on the same PR) can
+          # still have posted an evidence comment outside this run. Skip
+          # if a <!-- idd-cleanup-evidence: ... --> comment already on the
+          # PR was posted by a trusted author -- this workflow's own posts
+          # are authored by `github-actions[bot]` (the GITHUB_TOKEN actor),
+          # and an agent's local F4 post is authored by a configured
+          # `trustedMarkerActors` login. An untrusted commenter pre-posting
+          # this marker prefix must never suppress the genuine evidence
+          # post or be treated as a completed cleanup record (this is the
+          # same trust-scoping every other IDD operational marker already
+          # applies).
+          # This step runs under the default GitHub Actions bash flags
+          # (-eo pipefail), so a plain `jq ... .github/idd/config.json`
+          # would abort the whole step under `set -e` when the file is
+          # missing or unreadable (a repo still using only the legacy
+          # `idd-policy.json` name, or a non-template install) --
+          # `|| true` keeps that a soft "no extra trusted logins" read
+          # instead of a hard failure, preserving the fail-closed
+          # trust-only-github-actions-bot behavior below rather than
+          # silently skipping the whole duplicate-evidence check.
+          TRUSTED_LOGINS=$(
+            {
+              jq -r '(.trustedMarkerActors // [])[]' .github/idd/config.json 2>/dev/null || true
+              echo 'github-actions[bot]'
+            } | tr '[:upper:]' '[:lower:]'
+          )
+          # Capture into a variable (not process substitution): a failure
+          # inside `< <(gh api ...)` does not reliably propagate to this
+          # shell's default `-e`/`pipefail`, which could leave EXISTING
+          # empty and post a duplicate evidence comment on a transient
+          # `gh api` failure (rate limit/network). A plain command
+          # substitution assignment does trip `-e` on failure.
+          COMMENTS_TSV=$(gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+            --jq '.[] | select(.body | startswith("<!-- idd-cleanup-evidence:")) | [.id, .user.login] | @tsv')
+          EXISTING=""
+          while IFS=$'\t' read -r candidate_id candidate_login; do
+            [ -z "$candidate_id" ] && continue
+            lower_login=$(printf '%s' "$candidate_login" | tr '[:upper:]' '[:lower:]')
+            if printf '%s\n' "$TRUSTED_LOGINS" | grep -Fxq "$lower_login"; then
+              EXISTING="$candidate_id"
+              break
+            fi
+          done <<< "$COMMENTS_TSV"
+          if [ -n "$EXISTING" ]; then
+            echo "::notice::PR #${PR_NUMBER} already has a trusted-author idd-cleanup-evidence comment (id: ${EXISTING}); skipping workflow post."
+            exit 0
+          fi
+          BODY=$(printf '%s\n\n%s\n\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n' \
+            "<!-- idd-cleanup-evidence: ${STATUS} applied:${APPLIED} failed:${FAILED} skipped:${SKIPPED} viewer-cannot-minimize:${BLOCKED} -->" \
+            "**F4 Cleanup Evidence** (server-side fallback via \`post-merge-cleanup.yml\`)" \
+            "| Field              | Value |" \
+            "| ------------------ | ----- |" \
+            "| Status             | ${STATUS} |" \
+            "| Applied            | ${APPLIED} |" \
+            "| Failed             | ${FAILED} |" \
+            "| Skipped            | ${SKIPPED} |" \
+            "| Permission-blocked | ${BLOCKED} |" \
+            "| Posted by          | post-merge-cleanup workflow |" \
+          )
+          printf '%s' "$BODY" | gh pr comment "$PR_NUMBER" --body-file -
