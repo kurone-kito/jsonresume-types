@@ -1,3 +1,10 @@
+---
+type: concept
+title: Core IDD Concepts
+description: Introduces the loop-engineering vocabulary and mental model behind the IDD phase instructions before diving into phase-by-phase rules.
+tags: [concepts, mental-model]
+---
+
 # Core IDD Concepts
 
 Use this page when you want the mental model before reading the phase

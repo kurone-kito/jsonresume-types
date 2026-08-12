@@ -1,3 +1,10 @@
+---
+type: reference
+title: IDD — Concept Ownership Matrix
+description: Answers which actor may touch a given IDD concept at a given phase without re-reading every instruction file.
+tags: [concept-ownership, matrix]
+---
+
 # IDD — Concept Ownership Matrix
 
 Use this page to answer "may this actor touch this concept, right now?"
@@ -39,7 +46,7 @@ back as evidence for a gate.
 | Concept | Creator | Mutator | Verifier |
 | --- | --- | --- | --- |
 | Issue body | Human maintainer (or the issue-authoring skill) | Human maintainer; the issue-authoring skill before an active claim or open PR exists; worker session only for roadmap task-list updates (A1.5) | A0-T/A3/A3.5 readiness checks |
-| Status / blocker labels (`status:authoring`, `status:blocked-by-human`, `status:needs-decision`, `idd:ready`, `triage:{outcome}`) | Human maintainer for the ready label; issue-authoring skill for `status:authoring`; worker session for `status:needs-decision`/`status:blocked-by-human` (A1.5 non-autonomous gap, E6 escalation) or the optional diagnostic `triage:` label (A4.5) | Issue-authoring skill removes `status:authoring`; human maintainer removes `status:blocked-by-human`/`status:needs-decision`/`idd:ready` regardless of which actor applied it — resolving that blocker is the human judgment the label exists to enforce | A0/A3/A3.5/A4.5 gates |
+| Status / blocker labels (`status:authoring` — draft marker and claim-suppression lock while an issue is held, `status:blocked-by-human`, `status:needs-decision`, `idd:ready`, `triage:{outcome}`) | Human maintainer for the ready label; issue-authoring skill for `status:authoring`; worker session for `status:needs-decision`/`status:blocked-by-human` (A1.5 non-autonomous gap, E6 escalation) or the optional diagnostic `triage:` label (A4.5) | Issue-authoring skill removes `status:authoring` only on the user's explicit hold-release request; human maintainer removes `status:blocked-by-human`/`status:needs-decision`/`idd:ready` regardless of which actor applied it — resolving that blocker is the human judgment the label exists to enforce | A0/A3/A3.5/A4.5 gates |
 | Claim marker (`claimed-by`) | Worker session, A5 | Worker session (heartbeat, `unclaimed-by`) or a later worker session (stale takeover, A5/Resume-stall S5) | Claim revalidation gate before every mutation; Resume Step 1 |
 | Activation-nonce marker | Worker session, alongside every fresh claim activation (A5) | Immutable once posted; superseded implicitly by the next activation's nonce | Claim verification step 5; claim revalidation gate |
 | Heartbeat | Worker session holding the claim, re-posting `claimed-by` with the same `{claim-id}` | Worker session, every ≤ 12 h while holding | Claim-state parsing rule 3.5 (heartbeat branch invariant) |

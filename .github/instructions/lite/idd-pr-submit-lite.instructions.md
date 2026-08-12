@@ -375,7 +375,8 @@ than the run it supersedes. Once both have completed, the later
    finished — and resume polling. If it is `hold`, or the timeout
    recurs after a rerun, stop per the condition above and post a hold
    note.
-7. **`success`**: proceed to `idd-review-snapshot.instructions.md` (E1).
+7. **`success`**: proceed to `idd-review-snapshot-lite.instructions.md`
+   (E1).
 8. **Exception**: if `idd-advisory-convergence` is the only
    non-passing required check, and that check's own run-log JSON verdict
    reports `pending: false` with outstanding review reasons (thread

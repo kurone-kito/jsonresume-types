@@ -1,3 +1,10 @@
+---
+type: guide
+title: Permissions and Threat Model
+description: Defines the credential profiles, merge-policy boundaries, and threat model an operator must choose before granting IDD agents GitHub access.
+tags: [permissions, threat-model]
+---
+
 # Permissions and Threat Model
 
 IDD agents can read issues, post operational comments, push branches,

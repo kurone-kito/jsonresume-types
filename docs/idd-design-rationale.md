@@ -1,3 +1,10 @@
+---
+type: design
+title: IDD — Design Rationale and Maintainer Notes
+description: Collects maintainer-facing rationale for why IDD phase rules exist as they do, organized by phase file.
+tags: [design-rationale, maintainer-notes]
+---
+
 # IDD — Design Rationale and Maintainer Notes
 
 This document collects maintainer-facing rationale, diagnostics, and
@@ -560,6 +567,58 @@ routing table does not already serve. A project that reaches this same
 conclusion independently should record it here rather than re-running
 the investigation.
 
+### Microsoft APM as an additional distribution channel: no-go (2026-08-02)
+
+kurone-kito/idd-skill#1727 investigated whether the source repository
+should distribute the IDD template through
+[Microsoft APM](https://github.com/microsoft/apm) (Agent Package
+Manager), a pre-1.0 MIT-licensed package manager for agent context,
+beside the existing `idd-template/ONBOARDING.md` raw-fetch-and-copy
+flow. The full findings live in the source repository's
+`docs/apm-distribution-strategy.md`.
+
+The decision: **no-go** for the core template. Five payload classes
+(`.github/workflows/idd-advisory-convergence.yml`, `.githooks/`,
+`.github/idd/config.json`, `profiles/`, `idd-template/docs/**`) have no
+APM primitive at all — APM's `hooks` primitive is a false-friend name
+collision with `.githooks/`, since it covers harness-runtime
+lifecycle callbacks, not git hooks. The phase-instruction corpus's real
+activation key is workflow-step position, which does not map onto
+APM's file-glob-scoped `applyTo` frontmatter; encoding it either way
+degrades current behavior (a meaningless glob, or folding every phase
+file into the always-loaded compiled context and blowing the
+`instructionSizeBudgets`/`bundleBudgets` caps). APM's `apm.lock.yaml`
+pins per-file content hashes, which is structurally incompatible with
+the template's 26 `{{...}}` placeholder occurrences that onboarding
+substitutes in place — every onboarded repository would carry
+permanent, unresolvable drift from completion onward. Multi-target
+compilation also breaks the corpus's own cross-references (bare-prose
+mentions of `<name>.instructions.md`, the large majority of the
+corpus's ~200 such references) on every non-Copilot target, since each
+target compiles instructions to a different directory and, for several
+targets, a different file extension. Net, adopting APM for the phase
+corpus reproduces the "third synchronized surface" objection that
+already decided the skill-delivery no-go above, now as a new external
+CLI dependency rather than a same-repo generated file tree.
+
+The one favorable exception: `skills/issue-authoring/` already
+conforms to APM's skill-frontmatter contract, already uses the
+`references/` convention, carries no placeholders, and its drift
+arithmetic is net-neutral — APM's skill-bundle deployment would
+plausibly **replace**, not add to, the existing
+`skills/issue-authoring` → `.claude/skills/issue-authoring`
+`mode: "exact"` sync pair. That exception is recorded as a named
+revisit condition, not an adoption; APM's pre-1.0 release cadence (10
+tagged releases in roughly 6.5 weeks as of this analysis) is an
+independent, ongoing maintenance-risk factor even for that narrow case.
+
+Conditions that would revisit this: APM reaching a stable schema; APM's
+`instructions` primitive gaining a workflow-step-scoped activation mode;
+explicit adopter demand with a concrete use case the raw-URL path does
+not already serve; or a bounded pilot of `skills/issue-authoring/`
+alone. A project that reaches this same conclusion independently should
+record it here rather than re-running the investigation.
+
 ## Documentation conventions
 
 ### Cite the observed incident
@@ -584,6 +643,20 @@ reads as a deliberate statement rather than an omission.
 The convention applies **forward**, to new or edited passages only.
 Retrofitting an existing passage with a citation is in scope on
 budget-exempt `docs/` surfaces, but out of scope for
-`.github/instructions/` files — do not edit an instruction file
-solely to add a citation; those bundle budgets already sit near their
-ceiling (see the headroom review in kurone-kito/idd-skill#1525).
+`.github/instructions/` files: do not edit an instruction file solely
+to add a citation. That exemption is not retrofit-only — a brand-new
+`.github/instructions/` passage that names an anti-pattern or failure
+mode is exempt from the citation requirement too, for the same
+reason: those bundle budgets already sit near their ceiling (see the
+headroom review in kurone-kito/idd-skill#1525; scope clarified by
+kurone-kito/idd-skill#1647 after CodeRabbit read the original wording
+as covering only retrofits).
+
+When an instruction passage's motivating incident is worth recording
+in full, put the date-plus-reference in a paired
+`docs/idd-design-rationale.md` entry and link to it by section anchor,
+as most cited passages already do. A bare issue-number aside directly
+in the instruction text remains acceptable in place of that link when
+no paired entry exists — both forms fit inside the tight
+instruction-bundle budget that motivates the exemption; neither is
+required.

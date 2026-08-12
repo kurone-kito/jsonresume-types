@@ -1,3 +1,10 @@
+---
+type: workflow
+title: IDD workflow guide
+description: Routes each agent to its entry file and the phase file matching its current state.
+tags: [workflow, phase-routing]
+---
+
 # IDD workflow guide
 
 This document is the neutral entry point for the repository's
@@ -343,27 +350,29 @@ session would.
 
 ## IDD file map
 
-| File                                                       | Role                                                                                                                                                                                            |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.github/instructions/idd-overview-core.instructions.md`   | Shared definitions, command sets, routing table, critique-pass mapping                                                                                                                          |
-| `.github/instructions/idd-discover.instructions.md`        | A0-T–A4.5: find a viable issue, classify roadmap vs. leaf nodes during traversal, run suitability, and hand off                                                                                 |
-| `.github/instructions/idd-roadmap-audit.instructions.md`   | A1.5: audit roadmap completion, including bottom-up recursive roadmap closure, before A2                                                                                                        |
-| `.github/instructions/idd-claim.instructions.md`           | A5: run claim pre-checks and claim verification                                                                                                                                                 |
-| `.github/instructions/idd-work.instructions.md`            | B1-B3 + C1-C6: create worktree, plan, implement, and self-review                                                                                                                                |
-| `.github/instructions/idd-pr-submit.instructions.md`       | D1-D4: rebase, validate, push, open PR, and wait for CI                                                                                                                                         |
-| `.github/instructions/idd-ci.instructions.md`              | D4/E15 helper: shared CI polling helper used by later phases                                                                                                                                    |
-| `.github/instructions/idd-advisory-wait.instructions.md`   | AW1-AW5 helper: shared Copilot advisory-wait protocol (E14, F2, F3)                                                                                                                             |
-| `.github/instructions/idd-review-snapshot.instructions.md` | E1–E3: fetch activity snapshot, run critique, check if ReviewItems_snapshot is empty                                                                                                            |
-| `.github/instructions/idd-review-triage.instructions.md`   | E4–E8: classify items, score, record dispositions, and run E-phase branch-sync check before F-phase                                                                                             |
-| `.github/instructions/idd-review-fix.instructions.md`      | E9-E15: fix accepted review items and push follow-up commits (merge-from-main, not rebase)                                                                                                      |
-| `.github/instructions/idd-pre-merge.instructions.md`       | F1: final read-only branch-state check; F2: verify all pre-merge conditions                                                                                                                     |
-| `.github/instructions/idd-merge-handoff.instructions.md`   | F2.5: resolve merge-policy handoff vs autonomous merge routing                                                                                                                                  |
-| `.github/instructions/idd-merge.instructions.md`           | F3–F5: execute the merge, clean up, and loop back to discover                                                                                                                                   |
-| `.github/instructions/idd-resume.instructions.md`          | Resume Step 0-3: route crash, stalled, stale-takeover, or clean continuation                                                                                                                    |
-| `.github/instructions/idd-resume-stall.instructions.md`    | Resume S1-S5: handle stalled-session recovery with a dedicated safety gate                                                                                                                      |
-| `.github/instructions/lite/idd-*-lite.instructions.md`     | Condensed weak-model-tier phase files for phases with a shipped lite bundle; see [Lite instruction profile opt-in](#lite-instruction-profile-opt-in) for the mapping and standard-file fallback |
-| `docs/idd-review-policy-profiles.md`                       | PR review policy profiles and customization surfaces                                                                                                                                            |
-| `docs/idd-comment-minimization.md`                         | Live status digest contract and post-merge comment minimization policy                                                                                                                          |
+| File                                                         | Role                                                                                                                                                                                            |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/instructions/idd-overview-core.instructions.md`     | Shared definitions, command sets, routing table, critique-pass mapping                                                                                                                          |
+| `.github/instructions/idd-overview-appendix.instructions.md` | Reference and implementation detail for core: live status digest, abort/hold templates, commit signing, critique-pass detail, and template-sync guidance                                        |
+| `.github/instructions/idd-discover.instructions.md`          | A0-T–A4: find a viable issue and classify roadmap vs. leaf nodes during traversal, then hand off to the A4.5 row below                                                                          |
+| `.github/instructions/idd-roadmap-audit.instructions.md`     | A1.5: audit roadmap completion, including bottom-up recursive roadmap closure, before A2                                                                                                        |
+| `.github/instructions/idd-suitability.instructions.md`       | A4.5: pre-claim suitability triage — filter incoherent, unsafe, duplicated, or out-of-scope candidates before claim                                                                             |
+| `.github/instructions/idd-claim.instructions.md`             | A5: run claim pre-checks and claim verification                                                                                                                                                 |
+| `.github/instructions/idd-work.instructions.md`              | B1-B3 + C1-C6: create worktree, plan, implement, and self-review                                                                                                                                |
+| `.github/instructions/idd-pr-submit.instructions.md`         | D1-D4: rebase, validate, push, open PR, and wait for CI                                                                                                                                         |
+| `.github/instructions/idd-ci.instructions.md`                | D4/E15 helper: shared CI polling helper used by later phases                                                                                                                                    |
+| `.github/instructions/idd-advisory-wait.instructions.md`     | AW1-AW5 helper: shared Copilot advisory-wait protocol (E14, F2, F3)                                                                                                                             |
+| `.github/instructions/idd-review-snapshot.instructions.md`   | E1–E3: fetch activity snapshot, run critique, check if ReviewItems_snapshot is empty                                                                                                            |
+| `.github/instructions/idd-review-triage.instructions.md`     | E4–E8: classify items, score, record dispositions, and run E-phase branch-sync check before F-phase                                                                                             |
+| `.github/instructions/idd-review-fix.instructions.md`        | E9-E15: fix accepted review items and push follow-up commits (merge-from-main, not rebase)                                                                                                      |
+| `.github/instructions/idd-pre-merge.instructions.md`         | F1: final read-only branch-state check; F2: verify all pre-merge conditions                                                                                                                     |
+| `.github/instructions/idd-merge-handoff.instructions.md`     | F2.5: resolve merge-policy handoff vs autonomous merge routing                                                                                                                                  |
+| `.github/instructions/idd-merge.instructions.md`             | F3–F5: execute the merge, clean up, and loop back to discover                                                                                                                                   |
+| `.github/instructions/idd-resume.instructions.md`            | Resume Step 0-3: route crash, stalled, stale-takeover, or clean continuation                                                                                                                    |
+| `.github/instructions/idd-resume-stall.instructions.md`      | Resume S1-S5: handle stalled-session recovery with a dedicated safety gate                                                                                                                      |
+| `.github/instructions/lite/idd-*-lite.instructions.md`       | Condensed weak-model-tier phase files for phases with a shipped lite bundle; see [Lite instruction profile opt-in](#lite-instruction-profile-opt-in) for the mapping and standard-file fallback |
+| `docs/idd-review-policy-profiles.md`                         | PR review policy profiles and customization surfaces                                                                                                                                            |
+| `docs/idd-comment-minimization.md`                           | Live status digest contract and post-merge comment minimization policy                                                                                                                          |
 
 ## ReviewItems_snapshot lifecycle
 
@@ -849,13 +858,16 @@ produces a list of issues with severity, correctness, and coverage
 assessment. The goal and expected output are the same regardless of
 agent; only the mechanism differs.
 
-| Agent           | How to run a critique pass                                                                                                                 |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Copilot         | Launch a subagent in Agent mode; use the calling phase's critique checklist as the prompt                                                  |
-| Claude Code     | `Agent(subagent_type="general-purpose")` with the calling phase's critique checklist                                                       |
-| Codex CLI       | Self-critique: add a "review the above for issues" step in the next response                                                               |
-| OpenCode        | Launch a subagent via OpenCode's Task tool (e.g. the built-in `general` subagent, or a `subtask: true` command) — an independent mechanism |
-| Antigravity CLI | Self-critique or use Antigravity's native multi-step task mechanism if available                                                           |
+| Agent           | How to run a critique pass                                                                                                                                                                                                 |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Copilot         | Launch a subagent in Agent mode; use the calling phase's critique checklist as the prompt                                                                                                                                  |
+| Claude Code     | `Agent(subagent_type="general-purpose")` with the calling phase's critique checklist                                                                                                                                       |
+| Codex CLI       | Use one bounded read-only native subagent review when supported and suitable; parent waits for and collects the result. Fallback: structured self-critique when delegation is unavailable, disabled, unsuitable, or fails. |
+| OpenCode        | Launch a subagent via OpenCode's Task tool (e.g. the built-in `general` subagent, or a `subtask: true` command) — an independent mechanism                                                                                 |
+| Antigravity CLI | Self-critique or use Antigravity's native multi-step task mechanism if available                                                                                                                                           |
+
+For Codex delegation, the parent collects the reviewer result before
+continuing; if delegation fails, use the structured fallback.
 
 When a phase file says "run a critique pass", apply the row for your
 agent above. If no subagent mechanism is available, perform the critique

@@ -24,6 +24,8 @@ For each item in ReviewItems_snapshot, first classify it:
   included by E1 for traceability, even when they do not require a code
   change.
 - If classification is ambiguous, default to PATH A.
+- Record each PATH A actor's permission standing (CODEOWNER, required
+  reviewer, Triage/Write/Maintain/Admin, or none) — E5's cap reads it.
 
 **Advisory non-review notice.** Before scoring a PATH B item, decide
 whether it is a _completed_ advisory review of the current HEAD or an
@@ -39,7 +41,8 @@ Then apply path-specific scoring:
 
 - **PATH A**: assess severity/relevance to PR intent. **High** (safety,
   correctness, requirement violations, CI stability) → **Accept
-  forced**; **Low** (minor, unrelated to PR intent) → **Reject
+  forced**, gated by "Verify before accept" and the actor-permission cap
+  (E5); **Low** (minor, unrelated to PR intent) → **Reject
   recommended**; **Medium** → judge by context.
 - **PATH B**: no High/Medium/Low. Score only a _completed_ review of
   current HEAD as `Accepted` (confirmed/useful) or `Rejected`
@@ -49,19 +52,42 @@ Then apply path-specific scoring:
 
 Record a path-specific disposition for every item:
 
-- **PATH A**: High-severity items are Accepted automatically;
-  Medium/Low require an explicit Accept or Reject decision.
+- **PATH A**: High-severity items reach Accepted only via "Verify
+  before accept" below, or — when the actor-permission cap applies —
+  an explicit maintainer confirmation reply; Medium/Low require an
+  explicit Accept or Reject decision.
 - **PATH B** (a _completed_ review of the current HEAD): `Accepted`
   means the advisory confirms the implementation or captures useful
   context; `Rejected` means noted, no action required. An advisory
   non-review notice (E4) is **not scored** here — record it, but always
   as `Rejected` per the E6 non-review-notice rule.
 
+**Actor-permission cap (PATH A).** Before an Accept, check whether the
+actor is a CODEOWNER, required reviewer, or holds Triage/Write/Maintain/
+Admin access (`GET
+/repos/{owner}/{repo}/collaborators/{username}/permission`). Absent all
+three, assertion alone never reaches Accept forced — only "Verify before
+accept" confirming the claim, or an explicit maintainer confirmation
+reply, gets it there. Otherwise cap it at Rejected with the reasoned
+reply E6 already requires. CODEOWNER/required-reviewer AMD handling is
+unchanged.
+
 Accepted PATH B items do **not** enter review-fix. They are fully
 handled in E6-E7.
 
+**Verify before accept (PATH A and PATH B).** A PATH A or PATH B item
+often asserts a fact — about safety, correctness, the runtime, CI, or an
+artifact. Before `Accept`ing it, confirm the claim against live evidence
+(a code read, reproduction, or an equivalent check), not the comment
+text alone — the actor-permission cap above is the only exception, via
+maintainer confirmation for an unprivileged PATH A actor: confirmed →
+`Accept` and act; **false on the live evidence** → disposition it
+`Rejected` and cite the contradicting evidence (the code as read, the
+real run conclusion, file contents, or artifact) — a verified-false
+claim is a reasoned rejection, not an action item.
+
 **Resolved-thread duplicate pre-check (PATH B, before verification).**
-Before verification below, check whether a new PATH B item — a review
+Before verification above, check whether a new PATH B item — a review
 thread or a regular comment (E6 supports both PATH B sources) — matches
 an entry in this PR's resolved-thread index
 (`idd-review-snapshot.instructions.md` E1 Step 3). Matching is scoped to
@@ -90,7 +116,7 @@ state of its own, but can still match a prior resolved thread's claim.
   thread; reply only for a regular comment. Every recurrence still gets
   its own reply, so the 1:1 disposition-count / no-combined-replies rule
   (E6) is unchanged — only the reply's content is shortcut.
-- **Fall through** unchanged to "Verify before accept (PATH B)" below
+- **Fall through** unchanged to "Verify before accept" above
   when there is no match, re-confirmation shows the new item is not
   actually the same underlying claim, the matched disposition is not a
   reasoned rejection with evidence, the cited evidence no longer holds
@@ -103,14 +129,6 @@ was rejected with evidence (the step only uploads an artifact). Confirm
 the claim and evidence still hold at current HEAD, reply `**Rejected**
 — same claim as {prior thread URL}: verified false there; unchanged at
 current HEAD.`, then resolve the thread.
-
-**Verify before accept (PATH B).** A PATH B advisory often asserts a fact
-about the runtime, CI, or an artifact. Before `Accept`ing it, verify the
-claim against the live runtime / artifact / CI run, not the comment text
-alone: confirmed → `Accept` and act; **false on the live evidence** →
-disposition it `Rejected` and cite the contradicting evidence (the real
-run conclusion, file contents, or artifact) — a verified-false advisory
-is a reasoned rejection, not an action item.
 
 **Reasoned-rejection convergence.** The iterate-to-zero loop may converge
 by reasoned rejection of peripheral or verified-false items — not every
@@ -337,7 +355,9 @@ Before leaving triage, verify every ReviewItems_snapshot item has the
 evidence required by its path:
 
 - Every PATH A item has a recorded classification and an Accept or
-  Reject decision.
+  Reject decision. Every Accepted item cites its "Verify before accept"
+  evidence, or the maintainer confirmation reply when actor-permission
+  capped.
 - Every Rejected PATH A item whose source is reviewer feedback has the
   required rejection or `**Awaiting maintainer decision**` reply posted,
   and any non-AMD thread resolution is complete.

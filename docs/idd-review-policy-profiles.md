@@ -1,3 +1,10 @@
+---
+type: guide
+title: IDD Review Policy Profiles
+description: Names the supported PR review policy profiles and the instruction files an adopter must edit to select one other than the Copilot-advisory default.
+tags: [review-policy, profiles]
+---
+
 # IDD Review Policy Profiles
 
 IDD separates the execution loop from the pull request review policy as

@@ -1,3 +1,10 @@
+---
+type: design
+title: IDD Helper Script Evaluation
+description: Records the current adoption decision and trade-offs for IDD's optional helper scripts so future reviews do not re-evaluate them from scratch.
+tags: [helper-scripts, tooling]
+---
+
 # IDD Helper Script Evaluation
 
 This document records the current decision on optional helper scripts for
@@ -113,25 +120,42 @@ In the idd-skill source repository, the following optional helpers were adopted:
   sub-gate (#1340): a deterministic `converged`/`ready` verdict with an
   exit-code contract via `--assert`, claim-independent so it also works
   as a required-check-able CI verdict
-- `scripts/rerun-advisory-convergence.mjs` (#1431) for a read-only
-  rerun-plan diagnosis of stuck `idd-advisory-convergence` check-run
-  rollups: fetches every check-run instance for a PR's current HEAD SHA
-  (paged commit check-runs API), classifies each as `pass` / `pending` /
-  `bot-gated-skip` / `unresolved` / `rerun-eligible`, and prints the
-  ordered, deduplicated `gh run rerun <id>` recovery plan for the
-  rerun-eligible instances (each command includes `-R owner/repo` when
-  the repository is known) — referenced from `idd-ci.instructions.md`
-  §Rerun mechanics as the preferred way to produce that plan. When the
-  rollup is stuck on a bot-gated instance alongside an already-passing
-  non-bot pull_request-family instance, it additionally offers a
-  `recoveryRefreshPlan` — populated even alongside a non-empty rerun plan
-  when every rerun-eligible instance there is itself bot-triggered (#1745;
-  rerunning a bot-triggered instance does not supply the non-bot trigger
-  the recovery-refresh option exists to provide): rerunning the
-  already-passing instance is the documented way to force a fresh
-  non-bot evaluation and clear the stale rollup. Never calls
-  `gh run rerun` itself; a mutating `--apply` mode is a deliberate
-  follow-up.
+- `scripts/rerun-advisory-convergence.mjs` (#1431) for a rerun-plan
+  diagnosis of stuck `idd-advisory-convergence` check-run rollups,
+  read-only by default: fetches every check-run instance for a PR's
+  current HEAD SHA (paged commit check-runs API), classifies each as
+  `pass` / `pending` / `bot-gated-skip` / `unresolved` /
+  `awaiting-fresh-review` / `rerun-eligible`, and prints the ordered,
+  deduplicated `gh run rerun <id>` recovery plan for the rerun-eligible
+  instances (each command includes `-R owner/repo` when the repository
+  is known) — referenced from `idd-ci.instructions.md` §Rerun mechanics
+  as the preferred way to produce that plan. An instance whose own
+  advisory-convergence job-log verdict reports that the latest Copilot
+  review does not cover the current HEAD is classified
+  `awaiting-fresh-review` rather than `rerun-eligible` (#1775), so the
+  diagnosis (and `--apply`) never burn the rerun-once budget on a
+  failure only a fresh review can clear. That historical job-log verdict
+  is an immutable snapshot from when the run executed, so it can go
+  stale once a fresh review actually lands afterward — a live check
+  (reusing `advisory-convergence.mjs`'s own latest-review evidence)
+  recovers the instance back to `rerun-eligible` once the current HEAD
+  is genuinely covered; live coverage that is unreadable or not yet
+  established leaves the hold exactly as before (#1806). When the
+  rollup is stuck on a
+  bot-gated instance alongside an already-passing non-bot
+  pull_request-family instance, it additionally offers a
+  `recoveryRefreshPlan` — populated even alongside a non-empty rerun
+  plan when every rerun-eligible instance there is itself bot-triggered
+  (#1745; rerunning a bot-triggered instance does not supply the
+  non-bot trigger the recovery-refresh option exists to provide):
+  rerunning the already-passing instance is the documented way to force
+  a fresh non-bot evaluation and clear the stale rollup. Pass `--apply`
+  (#1766) to execute that same plan instead of only diagnosing it:
+  reruns each rerun-eligible instance in order (recovery-refresh first
+  when one applies), waits for each to reach a genuinely new completed
+  attempt before starting the next, and stops early once the recomputed
+  plan is fully resolved — never a `bot-gated-skip`,
+  `awaiting-fresh-review`, or rerun-budget-held instance.
 - `scripts/live-status-digest.mjs` for issue or PR live status digest
   discovery, rendering, dry-run, and claim-checked upsert
 - `scripts/audit-pr-cleanup.mjs` for post-merge comment cleanup auditing
@@ -553,7 +577,14 @@ Node.js helper path.
   <helper-package-spec> idd-*` commands without copying helper files
   into the repository. The default helper package spec is an HTTPS
   archive URL, and `--package-spec` lets adopters pin a reviewed tarball
-  or mirror URL explicitly.
+  or mirror URL explicitly. Persist that same pin in
+  `.github/idd/config.json` as the optional `helperRuntime.packageSpec`
+  field so it is reflected consistently in every helper-emitted
+  `ephemeral-npx` invocation string (including the manifest CLI's own
+  default and idd-doctor's remediation hints), not only a one-shot
+  `--package-spec` flag on a single invocation. An explicit
+  `--package-spec` flag still wins over the configured value when both
+  are present.
 - `instructions-only`: keep helper dependencies, helper files, and helper
   wrapper scripts out of the target repository entirely.
 
@@ -567,6 +598,24 @@ instruction files for no portability gain. Under `package-manager` and
 retained. `instructions-only` uses neither. When an instruction shows a
 `node scripts/...` command, resolve it to your profile's authoritative surface
 rather than maintaining both.
+
+**Authoring rule for instructions/docs.** A mandatory helper step (one
+with no skip/fallback wording) must always name an `instructions-only`
+fallback, since that profile has no helper runtime at all. Every helper
+invocation written into `.github/instructions/**`, `docs/**`, or their
+`idd-template/` sources must use a form the `helper-runtime-manifest`
+command table actually produces for some profile — `node
+scripts/<name>.mjs`, a `package.json` `idd:<name>` script, or the
+`idd-<name>` bin command. Separately, a file that is itself part of the
+distributed template (anything under `idd-template/`, or a generated
+copy of it — see `resolveDistributedFiles()` in
+`tests/helper-invocation-profile.test.mts`) must never prescribe the
+source repository's own `bin/<name>.mjs` build-artifact path, which no
+adopter profile vends; a source-repo-only page (no `idd-template/`
+counterpart) may still discuss that path when its subject genuinely is
+this repository's own tooling.
+`tests/helper-invocation-profile.test.mts` enforces both rules
+mechanically.
 
 To switch profiles later, rerun the manifest with both
 `--profile <target-profile>` and `--from-profile <current-profile>`. The
@@ -784,7 +833,7 @@ The adopted helper boundaries are intentionally narrow:
 - Command: `node scripts/forced-handoff-marker.mjs --issue <number> --plan ...`
 - Published bin: `idd-forced-handoff-marker`
 - Stable contract:
-  [`schemas/forced-handoff-marker.schema.json`](../schemas/forced-handoff-marker.schema.json)
+  [`forced-handoff-marker.schema.json`][forced-handoff-marker-schema]
 - Intended use:
   - render or inspect canonical forced-handoff marker payloads
   - support audited debugging or manual review of the exact body
@@ -811,15 +860,29 @@ default `instructions-only` profile keep using the written shell /
 - Contract:
   - dry-run is the default; the helper prints the canonical comment body
     plus claim/check/authority evidence before any mutation
-  - `--apply` posts the PR comment only after verifying the linked
-    issue's active claim, the current PR HEAD SHA, the live check state,
-    waivable-selector coverage, and maintainer/admin authority
+  - in normal mode, `--apply` posts the PR comment only after verifying
+    the linked issue's active claim, the current PR HEAD SHA, the live
+    check state, waivable-selector coverage, and maintainer/admin
+    authority
   - non-interactive apply is refused unless `--yes` is provided after a
     prior dry-run review; interactive TTY runs may confirm with `y/N`
   - the helper fails closed when authority cannot distinguish owner,
     Maintain, or Admin from plain Write access, when the requested check
     is not configured in `ciGate.externalChecks.waivable`, or when the
     expiry exceeds `ciGate.externalCheckWaivers.maxValidity`
+  - `--claimless` (#1905) mode renders a claimless waiver -- literal
+    claim-id `none` -- instead of resolving a linked issue's active
+    claim; use it for a PR with no IDD claim at all (an automated
+    dependency-update PR such as Dependabot, Renovate, or ImgBot).
+    Cannot combine with `--issue` or `--claim-id`. In this mode,
+    `--apply` verifies that no active claim resolves for the PR instead
+    of resolving one, while still applying the same HEAD, live-check,
+    selector, expiry, and authority checks as normal mode -- the helper
+    blocks with a clear reason if the PR turns out to have a resolvable
+    active claim after all, since a `none` waiver only ever satisfies
+    the consumer-side gate (`summarizeExternalCheckWaivers` in
+    `protocol-helpers.mts`) when no claim resolves there, so posting one
+    against a claimed PR would just be rejected `wrongClaim`.
 
 ### External-check waiver contract
 
@@ -828,7 +891,7 @@ facade and F-phase consumer land. The contract is intentionally
 auditable and fail-closed.
 
 ```md
-<!-- idd-external-check-waiver: {agent-id} {claim-id} {head-sha} check:{check-selector} reason:{reason-token} expires:{iso8601} -->
+<!-- idd-external-check-waiver: {agent-id} {claim-id|none} {head-sha} check:{check-selector} reason:{reason-token} expires:{iso8601} -->
 
 _{actor}: external check waiver for IDD F phase._
 ```
@@ -845,6 +908,14 @@ Interpretation rules:
 - Missing or unparseable body fields, unknown selectors, expired
   comments, wrong HEAD, wrong claim, or untrusted authors must fail
   closed.
+- `claim-id` accepts the case-insensitive literal sentinel `none`
+  (#1905) alongside an arbitrary claim id, declaring a deliberately
+  claimless waiver. It satisfies the claim-binding check only when the
+  gate independently confirms no claim resolves for the PR (an empty
+  active claim id) -- on a PR with a resolvable active claim, `none` is
+  never accepted and still fails closed to the same wrong-claim
+  rejection as any other mismatched claim id; this never weakens the
+  #1077 fail-closed-on-empty-claim guarantee for a non-`none` claim id.
 - A valid waiver can apply only to checks listed in
   `ciGate.externalChecks.waivable` and only when
   `ciGate.externalCheckWaivers.mode` enables maintainer authorization.
@@ -869,6 +940,19 @@ Interpretation rules:
       --reason "rate limit" \
       --expires-in PT2H \
       --apply --yes
+    ```
+
+  - claimless PR (dry-run), e.g. a Dependabot PR with no IDD claim whose
+    primary-bot review never lands (observed 2026-08-05, #1904 -- 1 of
+    18 sampled `dependabot[bot]`-authored pull requests in this
+    repository's own history ever received a Copilot review):
+
+    ```sh
+    idd-external-check-waiver --pr 123 \
+      --claimless \
+      --check "idd-advisory-convergence" \
+      --reason "Dependabot PR, Copilot review never lands" \
+      --expires-in PT2H
     ```
 
   - inspect the rendered body first; do not hand-write or copy raw
@@ -910,7 +994,13 @@ Interpretation rules:
   `node scripts/claim-approval-gate.mjs --issue <issue-number>`
 - Package-manager / ephemeral-npx command: use the
   profile-selected `idd:claim-approval-gate` command from the helper
-  runtime manifest wiring above
+  runtime manifest wiring above; the literal invocation is:
+
+  ```sh
+  npx --yes --package <helper-package-spec> \
+    idd-claim-approval-gate --issue <issue-number>
+  ```
+
 - Optional freshness override: append
   `--generated-plan-updated-at <ISO8601>` when the caller already has
   authoritative generated-plan freshness evidence to reuse
@@ -933,7 +1023,18 @@ Interpretation rules:
   --claim-id <id> [--takeover]`
   and `node scripts/claim-lock.mjs --check --worktree <path>`
 - Package-manager / ephemeral-npx command: use the profile-selected
-  `idd:claim-lock` command from the helper runtime manifest wiring above
+  `idd:claim-lock` command from the helper runtime manifest wiring above;
+  the literal invocations are:
+
+  ```sh
+  npx --yes --package <helper-package-spec> \
+    idd-claim-lock --acquire --worktree <path> --agent-id <id> \
+    --claim-id <id> [--takeover]
+
+  npx --yes --package <helper-package-spec> \
+    idd-claim-lock --check --worktree <path>
+  ```
+
 - Same-machine fast path complementing the cross-machine claim check (see
   the [worktree-local lock file](../.github/instructions/idd-claim.instructions.md#worktree-local-lock-file-same-machine-collision)
   subsection of `idd-claim.instructions.md` for the full protocol)
@@ -990,7 +1091,14 @@ Interpretation rules:
 - Source repo / vendored-node command:
   `node scripts/branch-name.mjs --number <issue-number> --title <issue-title>`
 - Package-manager / ephemeral-npx command: use the profile-selected
-  `idd:branch-name` command from the helper runtime manifest wiring above
+  `idd:branch-name` command from the helper runtime manifest wiring above;
+  the literal invocation is:
+
+  ```sh
+  npx --yes --package <helper-package-spec> \
+    idd-branch-name --number <issue-number> --title <issue-title>
+  ```
+
 - Prints a single plain line `issue/<number>-<slug>`, implementing the
   `idd-claim.instructions.md` pre-check (e) slug algorithm exactly
   (lowercase, replace `[^a-z0-9]` with `-`, drop empty tokens and the
@@ -1007,7 +1115,13 @@ Interpretation rules:
   `node scripts/select-desynced-index.mjs --token <session-token> --band-size <band-size>`
 - Package-manager / ephemeral-npx command: use the profile-selected
   `idd:select-desynced-index` command from the helper runtime manifest
-  wiring above
+  wiring above; the literal invocation is:
+
+  ```sh
+  npx --yes --package <helper-package-spec> \
+    idd-select-desynced-index --token <session-token> --band-size <band-size>
+  ```
+
 - Prints a single plain integer line: the band index chosen by the A4
   Step 2 `discover.selectionDesync: session-offset` rule, implementing
   `selectDesyncedIndex` (a pure FNV-1a 32-bit hash of the session token,
@@ -1024,7 +1138,14 @@ Interpretation rules:
   `node scripts/emit-marker.mjs --type <type> <fields...>` where `<type>` is
   `claimed-by`, `review-watermark`, or `review-baseline`
 - Package-manager / ephemeral-npx command: use the profile-selected
-  `idd:emit-marker` command from the helper runtime manifest wiring above
+  `idd:emit-marker` command from the helper runtime manifest wiring above;
+  the literal invocation is:
+
+  ```sh
+  npx --yes --package <helper-package-spec> \
+    idd-emit-marker --type <type> <fields...>
+  ```
+
 - Prints the exact ready-to-post marker body (HTML token + visible "Do not
   edit" note) to stdout; **emit-only, no network write** — the agent posts
   it via the documented HTTP path
@@ -1043,7 +1164,14 @@ Interpretation rules:
   (dry-run prints a JSON envelope whose `body` field is the marker); add
   `--apply` to POST it.
 - Package-manager / ephemeral-npx command: use the profile-selected
-  `idd:post-idd-marker` command from the helper runtime manifest wiring above
+  `idd:post-idd-marker` command from the helper runtime manifest wiring
+  above; the literal invocation is:
+
+  ```sh
+  npx --yes --package <helper-package-spec> \
+    idd-post-idd-marker --type <type> --target <issue|pr> <number> <fields...>
+  ```
+
 - Write-side companion to `emit-marker`: it renders the canonical body for
   each operational marker `<type>` (`claim`, `unclaim`, `activation-nonce`,
   `watermark`, `baseline`, `advisory`, `advisory-recovery`,
@@ -1090,6 +1218,20 @@ Interpretation rules:
   (exits non-zero, no `gh` call) when passed without `--from-pr`, since manual
   mode already supplies `--head-sha` directly with nothing to compare it
   against.
+- `--from-pr` unaddressed-activity warning (`warnings`, kurone-kito/idd-skill#1833):
+  the JSON envelope (dry-run and `--apply` alike) carries an optional
+  `warnings` string array, present only when the fresh snapshot's
+  `dispositionEvidence.missingRegularCommentCount` /
+  `dispositionEvidence.missingThreadCount` are non-zero — comments or
+  threads with **no** disposition reply at all, whose activity this watermark's
+  `max-activity-at` / `total-item-count` are about to fold in as if
+  already reviewed. Surfaces the same evidence
+  `missing-disposition-evidence` blocks on at F2, but at watermark-post
+  time instead of only later via the readiness report. Diagnostic-only:
+  never blocks the post or changes `mode` / `body`. Deliberately **not**
+  based on the snapshot's `ackOnly` evidence, which is the carve-out that
+  marks post-disposition advisory-bot courtesy acks safe to fold in —
+  warning on that would fire on the routine, benign path.
 - **No claim/state gating** (the `emit-marker` philosophy): this is a
   single-marker render+POST primitive, so the calling phase must run its
   claim-revalidation gate before `--apply`, exactly as the manual POST path it
@@ -1176,7 +1318,13 @@ to post it is the consuming track's job.
   `node scripts/ci-wait-policy.mjs`
 - Package-manager / ephemeral-npx command: use the
   profile-selected `idd:ci-wait-policy` command from the helper runtime
-  manifest wiring above
+  manifest wiring above; the literal invocation is:
+
+  ```sh
+  npx --yes --package <helper-package-spec> \
+    idd-ci-wait-policy
+  ```
+
 - Optional rerun-budget evaluation: append
   `--rerun-count <count>` to the selected command
 - Stable fields consumed by instructions or helpers:
@@ -1193,7 +1341,13 @@ to post it is the consuming track's job.
   `node scripts/ci-wait-state.mjs --pr <pr-number>`
 - Package-manager / ephemeral-npx command: use the
   profile-selected `idd:ci-wait-state` command from the helper runtime
-  manifest wiring above
+  manifest wiring above; the literal invocation is:
+
+  ```sh
+  npx --yes --package <helper-package-spec> \
+    idd-ci-wait-state --pr <pr-number>
+  ```
+
 - Single-shot, read-only: fetches `gh pr view`'s
   `headRefOid`/`statusCheckRollup` plus the base branch's active rules and
   classic branch protection, then reuses the same
@@ -1209,32 +1363,71 @@ to post it is the consuming track's job.
   buckets as `failure`, same as `failure`) and `required` flag; and
   `requiredChecks` (`names`, `missingNames`, `allRequiredPresent`,
   `allRequiredPassing`, `anyRequiredPending`, `anyRequiredFailing`,
-  `anyRequiredUnknown`, `requiredCheckSourcePinned`, and a top-level
-  `status` of
+  `anyRequiredUnknown`, `requiredCheckSourcePinned`,
+  `requiredCheckSourcePinnedUnresolved`, and a top-level `status` of
   `success|pending|failing|missing|no-required-checks|source-pinned`)
 - **Source-pinned required checks**: when a ruleset `workflows` rule or an
   app/integration-pinned classic required check is in force but cannot be
   enumerated by name, `requiredCheckSourcePinned` is `true` and `status` is
   `source-pinned` — never `no-required-checks` — so a caller cannot
-  mistake an unresolvable required-check source for a vacuous pass.
+  mistake an unresolvable required-check source for a vacuous pass. When
+  every named required check is instead present and pass-equivalent but a
+  pinned rule entry also names one of them, `status` is still
+  `source-pinned` (not `success`) by default, because no producer-identity
+  data is fetched anywhere in this codebase's check-run reads to verify the
+  pinning (#1689) — set `ciGate.trustSourcePinnedRequiredChecks: true` in
+  `.github/idd/config.json` to opt in once the repository operator has
+  verified the pinned integration out-of-band; see the "Source-pinned
+  required-check trust" row in [Customizing IDD](customization.md).
+  `requiredCheckSourcePinnedUnresolved` is `true` when at least one pinned
+  source has no resolved check name at all (a `workflows` rule, or a
+  pinned classic entry with no `context`/`name`/`check`); the opt-in never
+  clears `status` back to `success` while this is `true`, even when a
+  separate, named-and-pinned check on the same required-check set would
+  itself qualify.
 - it remains read-only; the command performs no reruns and posts no
   GitHub comment
 
 ### Rerun-plan diagnosis (stuck advisory-convergence)
 
 - Source repo / vendored-node command:
-  `node scripts/rerun-advisory-convergence.mjs --pr <pr-number>`
+  `node scripts/rerun-advisory-convergence.mjs --pr <pr-number> [--apply]`
 - Package-manager / ephemeral-npx command: use the
   profile-selected `idd:rerun-advisory-convergence` command from the
-  helper runtime manifest wiring above
-- Read-only rerun-plan diagnosis (#1431) for a stuck `idd-advisory-convergence`
-  required-check rollup: fetches every check-run instance for the PR's
-  current HEAD SHA (paged commit check-runs API, `filter=all`), classifies
-  each as `pass` / `pending` / `bot-gated-skip` / `unresolved` /
-  `rerun-eligible`, and prints the ordered, deduplicated `gh run rerun <id>`
-  recovery plan for the rerun-eligible instances -- referenced from
-  `idd-ci.instructions.md` §Rerun mechanics as the preferred way to produce
-  that plan
+  helper runtime manifest wiring above, with `[--apply]` appended the
+  same way; the literal invocation is:
+
+  ```sh
+  npx --yes --package <helper-package-spec> \
+    idd-rerun-advisory-convergence --pr <pr-number> [--apply]
+  ```
+
+- Rerun-plan diagnosis (#1431) for a stuck `idd-advisory-convergence`
+  required-check rollup, read-only by default: fetches every check-run
+  instance for the PR's current HEAD SHA (paged commit check-runs API,
+  `filter=all`), classifies each as `pass` / `pending` / `bot-gated-skip` /
+  `unresolved` / `awaiting-fresh-review` / `rerun-eligible`, and prints
+  the ordered, deduplicated `gh run rerun <id>` recovery plan for the
+  rerun-eligible instances -- referenced from `idd-ci.instructions.md`
+  §Rerun mechanics as the preferred way to produce that plan. An
+  instance whose own advisory-convergence job-log verdict reports that
+  the latest Copilot review does not cover the current HEAD is
+  classified `awaiting-fresh-review` rather than `rerun-eligible`
+  (#1775), so neither the diagnosis nor `--apply` burns the rerun-once
+  budget on a failure only a fresh review can clear
+- That job-log verdict is an immutable snapshot from when the run
+  executed, so it can go stale once a fresh review lands after the run
+  already failed. `rerun-advisory-convergence.mjs` also checks a LIVE
+  signal (reusing `advisory-convergence.mjs`'s own latest-review
+  evidence: whether the latest trusted primary-bot review's commit now
+  matches the PR's current HEAD) and, when that live check confirms
+  coverage, reclassifies the instance back to `rerun-eligible` instead
+  of leaving it stuck forever -- the diagnosis JSON's per-instance
+  `reason` field distinguishes this live-coverage recovery from an
+  ordinary rerun-eligible instance. Live coverage that cannot be
+  established (unreadable, or genuinely not yet covered) leaves the
+  historical hold exactly as before this recovery path existed --
+  fail-closed, never an invented rerun (#1806)
 - Also reports a `recoveryRefreshPlan` when the rollup is stuck on a
   bot-gated instance alongside an already-passing non-bot
   pull_request-family instance — populated even alongside a non-empty
@@ -1246,8 +1439,15 @@ to post it is the consuming track's job.
   `runAttempt` already exhausted the `"rerun-once"` budget, withholds the
   corresponding plan entries with an explanatory `rerunPolicyHoldNotice`
   instead of silently omitting them
-- it never calls `gh run rerun` (or any other mutating command) itself; a
-  mutating `--apply` mode is a deliberate follow-up (out of scope for #1431)
+- Without `--apply`, it never calls `gh run rerun` (or any other mutating
+  command) itself. Pass `--apply` (#1766) to execute the printed plan:
+  it reruns each rerun-eligible instance in order (recovery-refresh first
+  when one applies), waits for each to reach a genuinely new completed
+  attempt (polled via the actions/runs API, not `gh run watch`, to avoid
+  racing a just-issued rerun's stale pre-rerun status) before starting
+  the next, and stops early once the recomputed plan is fully resolved --
+  a `bot-gated-skip`, `awaiting-fresh-review`, or rerun-budget-held
+  instance is never rerun
 
 ### Merge-gate evidence
 
@@ -1275,6 +1475,16 @@ to post it is the consuming track's job.
   on them. The semantic residual stays with the agent per the
   courtesy-ack convergence rule, and the disposition-evidence and
   unreplied-comment gates are unaffected
+- Disposition-evidence counters (kurone-kito/idd-skill#1833): the
+  snapshot also emits `dispositionEvidence` (`missingRegularCommentCount`,
+  `missingThreadCount`) — the same `summarizeDispositionEvidenceForGate`
+  evidence the F2 `missing-disposition-evidence` gate uses, trimmed to
+  its two counters (mirrors `advisory-convergence.mjs`'s own trimmed
+  projection of the same evidence, not `pre-merge-readiness.mjs`'s
+  richer field). A `--from-pr` watermark post
+  (`node scripts/post-idd-marker.mjs`) reads these to warn, in its own
+  success output, when the watermark it is about to post already covers
+  comments/threads that were never actually dispositioned
 - Readiness command: `node scripts/pre-merge-readiness.mjs`
   with `--pr <pr-number>`, `--claim-issue <issue-number>`,
   `--claim-id <claim-id>`, optional `--nonce <token>` (this session's own
@@ -1311,6 +1521,28 @@ to post it is the consuming track's job.
   (empty array, never omitted, when nothing was discarded) -- it does not
   itself gate F2/F3; a non-empty list is a prompt to double-check the live
   GitHub rollup directly rather than trusting a bare `ci.status: "success"`.
+- `ci.sourcePinnedRequiredCheckNames` (#1689) lists the required check
+  names whose green state was downgraded to `ci.status: "unknown"` because
+  their ruleset/classic-protection entry is source-pinned
+  (`app_id`/`integration_id`) and the `ciGate.trustSourcePinnedRequiredChecks`
+  opt-in was not set. Producer verification itself is not implemented (no
+  GitHub App identity is fetched for a live check-run anywhere in this
+  codebase); the opt-in is a human-authorized trust decision, not a
+  runtime check. Evidence only (empty array, never omitted, when no such
+  downgrade occurred) --
+  `computePreMergeReadinessBlockers` uses it to name the source-pinned
+  cause in the `ci` blocker detail instead of a generic "CI is not
+  all-passing" message; see [Customizing IDD](customization.md)'s
+  "Source-pinned required-check trust" row for the opt-in.
+  `ci.sourcePinnedUnresolved` is a sibling boolean, `true` when the
+  downgrade fired at least partly because of a pinned source with no
+  resolved check name (a ruleset `workflows` rule, or a pinned entry with
+  no `context`/`name`/`check`) -- distinct from
+  `sourcePinnedRequiredCheckNames` being empty, which alone is ambiguous
+  between "no pinning" and "pinning exists but is unnamed." The
+  `trustSourcePinnedRequiredChecks` opt-in never clears this cause, even
+  when a separate, named-and-pinned check on the same required-check set
+  would itself qualify.
 - Authoritative phase role: the live `pre-merge-readiness` run on the
   current HEAD is the **authoritative source for the final-merge CI and
   activity fields** at F2/F3. The `review-activity-snapshot` helper builds
@@ -1544,14 +1776,47 @@ to post it is the consuming track's job.
   applies to every PR or only verified IDD-owned PRs. The default
   `all-prs` keeps the helper applicable everywhere. `idd-claimed`
   narrows it so a verified linked claim with a matching PR head branch
-  is `applicable`; a verified linked claim with a branch mismatch is
-  `not_applicable`; a verified linked claim still stays `applicable`
-  when branch data is unavailable; and PRs without a verified linked
-  claim, including manual/dependency PRs, are `not_applicable`.
+  is `applicable`; a verified linked claim still stays `applicable`
+  when branch data is unavailable; and a PR with no verified linked
+  claim AND no claim-marker history at all (a genuine non-IDD
+  contribution, including manual/dependency PRs) is `not_applicable`.
   Claimless maintainer waivers stay outside this conditional scope; the
   normal deadline-based waiver path still applies only to applicable,
   verified IDD-owned PRs. Invalid or unreadable config values still
   normalize back to `all-prs` in trusted config reads.
+  - `status: "indeterminate"` (#1686): a third outcome, distinct from
+    both `applicable` and `not_applicable`, for a PR that carries real
+    evidence of IDD claim activity but whose claim linkage cannot be
+    resolved cleanly right now -- a claim-branch mismatch against an
+    active trusted claim, closing references ambiguous between two or
+    more actively-claimed issues, or a stale/released claim (claim
+    marker history exists, but no claim currently resolves active).
+    Unlike `not_applicable`, `indeterminate` never lets `ready` become
+    `true` through ordinary convergence -- only the existing
+    deadline/terminal-plus-maintainer-waiver escape hatch can still
+    clear it (and, for the ambiguous/stale-history cases, no
+    `activeClaimId` exists to bind a waiver to in the first place, so
+    those two are effectively not waivable in practice; the
+    branch-mismatch case does have a real `activeClaimId` and stays
+    genuinely waivable). See
+    `computeAdvisoryConvergenceVerdict`'s `AdvisoryConvergenceApplicability`
+    doc comment (advisory-convergence.mts) for the full contract.
+- `advisoryWait.exemptBotAuthoredPrs` (#1906): opt-in, off by default,
+  and effective only under `convergenceScope: "all-prs"` (`idd-claimed`
+  already resolves the same PR shape `not_applicable` via the
+  `idd-claimed-no-verified-linked-issue-claim` branch just above, so this
+  flag changes nothing there). When `true`, a PR whose author resolves to
+  a GitHub Bot-typed account (fetched via a small dedicated GraphQL
+  `__typename` query) AND has no claim-marker history at all resolves
+  to `not_applicable` (reason `bot-authored-no-claim-history`), letting
+  a recurring automated dependency-update PR (Dependabot, Renovate,
+  ImgBot, or similar) pass
+  the gate without a fresh per-PR maintainer waiver. A Bot-typed author
+  that DOES have claim-marker history, or any human-authored PR, is
+  never exempted regardless of this flag. The `scope-not-applicable`
+  same-HEAD-reroll token below already covers this new `not_applicable`
+  cause too, since its underlying check reads `applicability.status`
+  generically, not `convergenceScope` specifically.
 
 #### Bounded same-HEAD advisory reroll (AW6, #1511)
 
@@ -1572,16 +1837,16 @@ evidence, purely additively: `converged` / `waived` / `ready` are
 computed with **no reference to it at all**, so it can never let the
 gate pass on anything but the primary bot's own real signal.
 
-| Field               | Meaning                                                                                                                                                                                                                                                                                                                               |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `eligible`          | `matchesHead: true`, `itemCount > 0`, every Copilot-authored thread resolved or validly dispositioned, AND no outstanding regular-comment disposition evidence (`dispositionEvidence.missingRegularCommentCount === 0`) -- the static count is the ONLY thing keeping `converged` false, with no other triage work still outstanding. |
-| `ineligibleReasons` | `#1719`: one stable, machine-readable token per failing term of the `eligible` conjunction above (empty exactly when `eligible` is `true`), so a caller can self-diagnose a stuck reroll without re-deriving the rule by hand. See below for the token list and the report-mode example.                                              |
-| `count`             | Trusted `advisory-reroll:` marker count matching the current HEAD (resets on a new push, since a new HEAD's markers start over).                                                                                                                                                                                                      |
-| `cap`               | Configured bounded budget, `advisoryWait.sameHeadRerollCap` (default 2, deliberately conservative but > 1: same-SHA re-review is not a guaranteed one-shot off-ramp).                                                                                                                                                                 |
-| `exhausted`         | `count >= cap`: stop rerolling, fall through to the existing deadline-plus-maintainer-waiver backstop (#1512) or hold.                                                                                                                                                                                                                |
-| `latestAt`          | GitHub `created_at` of the latest trusted same-HEAD reroll marker, or `''` -- **never** the marker's embedded, agent-supplied timestamp (same anchor rule AW2 already states for `advisory-wait:`).                                                                                                                                   |
-| `inFlight`          | `true` while a reroll marker exists, no primary-bot review has been submitted after it yet, **and** the configured `advisoryWait.pendingWindow` has not yet elapsed since it was posted. Recomputed fresh from GitHub state on every call (never in-session memory), so a crash mid-poll can never cause a duplicate reroll request.  |
-| `requestable`       | `eligible && !exhausted && !inFlight` -- the exact instant it is safe to request a fresh same-HEAD reroll.                                                                                                                                                                                                                            |
+| Field               | Meaning                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `eligible`          | `matchesHead: true`, `itemCount` known AND (`itemCount > 0` OR `suppressedCount > 0`, #1880), every Copilot-authored thread resolved or validly dispositioned, AND no outstanding regular-comment disposition evidence (`dispositionEvidence.missingRegularCommentCount === 0`) -- the static count is the ONLY thing keeping `converged` false, with no other triage work still outstanding. |
+| `ineligibleReasons` | `#1719`: one stable, machine-readable token per failing term of the `eligible` conjunction above (empty exactly when `eligible` is `true`), so a caller can self-diagnose a stuck reroll without re-deriving the rule by hand. See below for the token list and the report-mode example.                                                                                                      |
+| `count`             | Trusted `advisory-reroll:` marker count matching the current HEAD (resets on a new push, since a new HEAD's markers start over).                                                                                                                                                                                                                                                              |
+| `cap`               | Configured bounded budget, `advisoryWait.sameHeadRerollCap` (default 2, deliberately conservative but > 1: same-SHA re-review is not a guaranteed one-shot off-ramp).                                                                                                                                                                                                                         |
+| `exhausted`         | `count >= cap`: stop rerolling, fall through to the existing deadline-plus-maintainer-waiver backstop (#1512) or hold.                                                                                                                                                                                                                                                                        |
+| `latestAt`          | GitHub `created_at` of the latest trusted same-HEAD reroll marker, or `''` -- **never** the marker's embedded, agent-supplied timestamp (same anchor rule AW2 already states for `advisory-wait:`).                                                                                                                                                                                           |
+| `inFlight`          | `true` while a reroll marker exists, no primary-bot review has been submitted after it yet, **and** the configured `advisoryWait.pendingWindow` has not yet elapsed since it was posted. Recomputed fresh from GitHub state on every call (never in-session memory), so a crash mid-poll can never cause a duplicate reroll request.                                                          |
+| `requestable`       | `eligible && !exhausted && !inFlight` -- the exact instant it is safe to request a fresh same-HEAD reroll.                                                                                                                                                                                                                                                                                    |
 
 **`ineligibleReasons` tokens (`#1719`)**: one entry per failing term, in
 the same order the `eligible` conjunction is written in
@@ -1590,14 +1855,14 @@ the same order the `eligible` conjunction is written in
 structurally unable to disagree.
 
 <!-- dprint-ignore-start -->
-| Token | Fires when... |
+| Token                                    | Fires when...                                                                                                                                          |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `scope-not-applicable` | `applicability.status` is `not_applicable` (`advisoryWait.convergenceScope: "idd-claimed"` and this PR has no matching verified linked claim/branch). |
-| `review-pending` | The primary bot has not yet reviewed current HEAD (`pending: true`). Always co-occurs with `review-item-count-unknown` below, since an off-HEAD review reports no usable item count. |
-| `unresolved-copilot-threads` | `threads.satisfied` is `false` -- at least one Copilot-authored thread is neither resolved nor validly dispositioned. |
-| `missing-regular-comment-disposition` | `dispositionEvidence.missingRegularCommentCount` is non-zero -- an outstanding regular (non-thread) PR comment still lacks a fresh disposition marker. |
-| `review-item-count-unknown` | The latest review's comment count is unavailable -- either the review is off-HEAD (co-firing with `review-pending` above, since `resolveLatestCopilotReviewClause` reports `itemCount: null` for any non-matching-HEAD review), or it is on current HEAD but the count itself is unavailable (a GraphQL nullable-field edge case). |
-| `review-item-count-not-positive` | The latest review's `itemCount` is a known, non-positive value (i.e. exactly `0` -- already fully converged, nothing to reroll). |
+| `scope-not-applicable`                    | `applicability.status` is `not_applicable` OR `indeterminate` (#1686) -- either `advisoryWait.convergenceScope: "idd-claimed"` and this PR has no verified linked claim/branch or has a broken/ambiguous claim linkage, or (#1906) `advisoryWait.exemptBotAuthoredPrs: true` under `"all-prs"` scope exempted a Bot-authored PR with no claim history. Offering a same-HEAD reroll is pointless in any of these cases. |
+| `review-pending`                          | The primary bot has not yet reviewed current HEAD (`pending: true`). Always co-occurs with `review-item-count-unknown` below, since an off-HEAD review reports no usable item count. |
+| `unresolved-copilot-threads`              | `threads.satisfied` is `false` -- at least one Copilot-authored thread is neither resolved nor validly dispositioned.                                   |
+| `missing-regular-comment-disposition`     | `dispositionEvidence.missingRegularCommentCount` is non-zero -- an outstanding regular (non-thread) PR comment still lacks a fresh disposition marker.  |
+| `review-item-count-unknown`               | The latest review's comment count is unavailable -- either the review is off-HEAD (co-firing with `review-pending` above, since `resolveLatestCopilotReviewClause` reports `itemCount: null` for any non-matching-HEAD review), or it is on current HEAD but the count itself is unavailable (a GraphQL nullable-field edge case). |
+| `review-item-count-not-positive`          | The latest review's `itemCount` is a known `0` AND `suppressedCount` (#1880) is also `0` -- already fully converged, nothing (posted or suppressed) to reroll for.                        |
 <!-- dprint-ignore-end -->
 
 When `review-item-count-not-positive` is absent but `converged` is still
@@ -1608,6 +1873,24 @@ check the review body directly -- the shape of the reported adopter
 incident: a "Comments suppressed due to low confidence" item embedded in
 the review's own body text counts toward `itemCount` but never surfaces
 as a review thread, so no thread query can ever explain it.
+
+**`suppressedCount` (kurone-kito/idd-skill#1880).** A distinct,
+`itemCount === 0` shape of the same underlying problem: GitHub Copilot
+can fold a finding into a `<details><summary>Suppressed comments
+(N)</summary>` block in the review's top-level `body` instead of
+posting it as a comment at all, so `comments.totalCount` (`itemCount`)
+stays `0` while a real finding still exists. Observed incident: PR
+kurone-kito/idd-skill#1875, merged 2026-08-05 (a Copilot review on that
+PR had `comments.totalCount: 0` with a body still containing an
+unaddressed `Suppressed comments (1)` finding).
+`resolveLatestCopilotReviewClause` (review-clause.mts) parses this
+heading into `review.suppressedCount`, and Clause 1's `satisfied`
+computation and `reviewItemCountPositiveTerm` above both treat
+`suppressedCount > 0` the same way they already treat `itemCount > 0` --
+blocking convergence with a dedicated top-level reason, and keeping the
+same-HEAD reroll recovery path available for it, since `suppressedCount`
+is read from the same static per-submission review snapshot `itemCount`
+is.
 
 **AW6 procedure** (`idd-advisory-wait.instructions.md`), invoked only
 from F2 on a non-zero `--assert` exit:
@@ -1820,9 +2103,10 @@ same as `AW4`/`AW5`.
 ### Merged-PR feedback sweep
 
 - Source repo / vendored-node command:
-  `node scripts/merged-pr-feedback-sweep.mjs`
-- Package-manager / ephemeral-npx command: use the profile-selected
-  `idd-merged-pr-feedback-sweep` command
+  `node scripts/merged-pr-feedback-sweep.mjs`. Source-repo internal
+  helper; not distributed via the package-manager / ephemeral-npx
+  profiles (it is a maintainer-run sweep, never an adopter-facing
+  step in the phase instructions).
 - A **manually-invoked**, read-only detector (no schedule, no mutation). It
   scans MERGED PRs and surfaces feedback that was left unattended at merge:
   - **Window selector**: `--since <ISO8601>` and/or `--days <N>`, or
@@ -2059,6 +2343,7 @@ replace the written decision tables.
 [advisory-convergence-schema]: https://kurone-kito.github.io/idd-skill/schemas/advisory-convergence.schema.json
 [advisory-wait-state-schema]: https://kurone-kito.github.io/idd-skill/schemas/advisory-wait-state.schema.json
 [disposition-non-review-notices-schema]: https://kurone-kito.github.io/idd-skill/schemas/disposition-non-review-notices.schema.json
+[forced-handoff-marker-schema]: https://kurone-kito.github.io/idd-skill/schemas/forced-handoff-marker.schema.json
 [idd-merge-execute-schema]: https://kurone-kito.github.io/idd-skill/schemas/idd-merge-execute.schema.json
 [post-idd-marker-schema]: https://kurone-kito.github.io/idd-skill/schemas/post-idd-marker.schema.json
 [pre-merge-readiness-schema]: https://kurone-kito.github.io/idd-skill/schemas/pre-merge-readiness.schema.json
