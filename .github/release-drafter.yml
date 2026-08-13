@@ -1,0 +1,58 @@
+name-template: v$RESOLVED_VERSION 🌈
+tag-template: v$RESOLVED_VERSION
+# Categories and autolabeler targets below must only reference labels
+# this repository actually applies for release notes. IDD's reserved
+# labels (roadmap, status:authoring, status:blocked-by-human,
+# status:needs-decision, idd:ready — see docs/idd-policy.md) must
+# never be added as release-drafter categories or autolabeler targets.
+categories:
+  - title: 💥 Breaking Changes
+    label: breaking
+  - title: 🚀 Features
+    label: enhancement
+  - title: 🐛 Bug Fixes
+    label: bug
+  - title: 📝 Documentation
+    label: documentation
+  - title: 🧰 Maintenance
+    label: dependencies
+    collapse-after: 5
+autolabeler:
+  - label: breaking
+    title:
+      - '/^\w+(\([^)]+\))?!:/'
+    body:
+      - '/BREAKING CHANGE:/'
+  - label: enhancement
+    title:
+      - '/^feat(\([^)]+\))?!?:/'
+  - label: bug
+    title:
+      - '/^fix(\([^)]+\))?!?:/'
+  - label: documentation
+    title:
+      - '/^docs(\([^)]+\))?!?:/'
+  - label: dependencies
+    title:
+      - '/^(chore|build)\(deps\):/'
+    branch:
+      - '/^dependabot\//'
+version-resolver:
+  major:
+    labels:
+      - breaking
+  minor:
+    labels:
+      - enhancement
+  patch:
+    labels:
+      - bug
+      - dependencies
+      - documentation
+  default: patch
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&'
+template: |
+  ## Changes
+
+  $CHANGES
