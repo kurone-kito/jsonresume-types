@@ -7,15 +7,22 @@ tag-template: v$RESOLVED_VERSION
 # never be added as release-drafter categories or autolabeler targets.
 categories:
   - title: 💥 Breaking Changes
-    label: breaking
+    when:
+      label: breaking
+    semver-increment: major
   - title: 🚀 Features
-    label: enhancement
+    when:
+      label: enhancement
+    semver-increment: minor
   - title: 🐛 Bug Fixes
-    label: bug
+    when:
+      label: bug
   - title: 📝 Documentation
-    label: documentation
+    when:
+      label: documentation
   - title: 🧰 Maintenance
-    label: dependencies
+    when:
+      label: dependencies
     collapse-after: 5
 autolabeler:
   - label: breaking
@@ -42,19 +49,6 @@ autolabeler:
       - '/^(chore|build)\(deps\):/'
     branch:
       - '/^dependabot\//'
-version-resolver:
-  major:
-    labels:
-      - breaking
-  minor:
-    labels:
-      - enhancement
-  patch:
-    labels:
-      - bug
-      - dependencies
-      - documentation
-  default: patch
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 change-title-escapes: '\<*_&'
 template: |
