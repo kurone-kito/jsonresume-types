@@ -35,7 +35,8 @@
     "exemptBotAuthoredPrs": true
   },
   "ciGate": {
-    "trustSourcePinnedRequiredChecks": true
+    "trustSourcePinnedRequiredChecks": true,
+    "trustEmptyProtectionReads": true
   },
   "autopilotSuitability": {
     "floor": 3
