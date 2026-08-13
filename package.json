@@ -24,7 +24,7 @@
   ],
   "scripts": {
     "build": "json2ts -i node_modules/@jsonresume/schema/schema.json -o index.d.ts",
-    "clean": "rimraf -g \"*.d.ts\" \"*.tgz\" \"node_modules/.cache/**/*\"",
+    "clean": "rimraf -g \"*.d.ts\" \"*.tgz\" \"*.tsbuildinfo\" \"node_modules/.cache/**/*\"",
     "lint": "pnpm run --stream \"/lint:check:.+/\"",
     "lint:check:biome": "biome check",
     "lint:check:cspell": "cspell lint --no-progress --show-suggestions -u \"./**/*\"",
@@ -34,7 +34,7 @@
     "lint:fix:markdown": "markdownlint-cli2 --fix \"**/*.md\"",
     "prepack": "npm run -s clean && npm run -s build",
     "prepare": "husky install",
-    "test": "tsc --noEmit",
+    "test": "rimraf -g \"*.tsbuildinfo\" && tsc --noEmit",
     "idd:advisory-convergence": "idd-advisory-convergence",
     "idd:advisory-wait-state": "idd-advisory-wait-state",
     "idd:audit-authored-issue": "idd-audit-authored-issue",
