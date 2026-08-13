@@ -133,22 +133,29 @@ gh api repos/kurone-kito/jsonresume-types/rules/branches/main \
   --jq '.[] | select(.type == "required_status_checks")'
 ```
 
-Confirm `.parameters.required_status_checks[].context ==
-"idd-advisory-convergence"` and
-`.parameters.strict_required_status_checks_policy == true` -- both fields
-nest under `.parameters` in the raw response. Separately confirm the
-no-bypass condition on the ruleset itself:
+Confirm the response's `.parameters` object satisfies both:
+
+- `required_status_checks[].context == "idd-advisory-convergence"`
+- `strict_required_status_checks_policy == true`
+
+Separately confirm the no-bypass condition on the ruleset itself:
 
 ```sh
 gh api repos/kurone-kito/jsonresume-types/rulesets/20745987 \
   --jq '{bypass_actors, current_user_can_bypass}'
 ```
 
-Confirm `bypass_actors` is empty -- the authoritative, identity-independent
-field, and what makes `current_user_can_bypass` read `"never"` for any
-caller. (Two separate calls are required: the `rules/branches/main` endpoint
-reports the required-check rule itself, while bypass configuration lives on
-the ruleset resource; no single endpoint returns both.)
+Confirm `bypass_actors` is explicitly returned as an empty array. GitHub only
+includes this field for a caller with write access to the ruleset, so an
+**omitted** field means the check is unverifiable for that caller, not
+confirmed empty -- treat it accordingly rather than assuming no-bypass. (The
+ruleset-detail endpoint above does return both `rules` and `bypass_actors`
+together for a write-access caller, so the two calls above aren't required by
+a field split; they answer two different questions. `rules/branches/main`
+reports the branch's **effective** required-check rule, aggregated across
+every matching ruleset, and never exposes `bypass_actors` at all.
+`rulesets/{id}` reports this **one** ruleset's own configuration, including
+its bypass actors.)
 
 Two behaviors to expect, both by design:
 
