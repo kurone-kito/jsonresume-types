@@ -121,18 +121,57 @@ mistaken for a broken hook.
 ## Advisory-Convergence Required Check
 
 **Status**: registered. `idd-advisory-convergence` is a required status check
-on the default branch's classic branch protection
-(`strict: true`, `enforce_admins: true` -- the check applies to admin merges
-too, including a trusted merge-capable session's own). Verify both together
-with:
+on the default branch, enforced via GitHub's Rulesets API rather than classic
+branch protection -- the `main` ruleset (id `20745987`) pins the check via
+`integration_id: 15368`, with `strict_required_status_checks_policy: true`
+and `bypass_actors: []` (the `enforce_admins: true` equivalent -- the check
+applies to admin merges too, including a trusted merge-capable session's
+own). Verify the pinned check and its strict-policy flag with:
 
 ```sh
-gh api repos/kurone-kito/jsonresume-types/branches/main/protection \
-  --jq '{strict: .required_status_checks.strict, enforce_admins: .enforce_admins.enabled, contexts: .required_status_checks.contexts}'
+gh api repos/kurone-kito/jsonresume-types/rules/branches/main \
+  --jq '.[] | select(.type == "required_status_checks" and .ruleset_id ==
+  20745987) | .parameters | {matches: (.required_status_checks |
+  any(.context == "idd-advisory-convergence" and .integration_id ==
+  15368)), strict: .strict_required_status_checks_policy}'
 ```
 
-(The narrower `.../protection/required_status_checks` endpoint only reports
-`strict` and `contexts`; it omits `enforce_admins`.)
+Confirm the response is `{"matches": true, "strict": true}`. This endpoint
+returns every active rule from **every** ruleset that matches `main`, each
+tagged with its own `ruleset_id` -- filtering on `.ruleset_id == 20745987`
+ties the confirmed rule specifically to this ruleset, rather than letting a
+required-check rule from a *different* matching ruleset satisfy the check
+while the separate bypass-actors call below verifies ruleset `20745987`
+alone (which would leave the two calls unintentionally describing two
+different rulesets). `matches` is an **inclusion** check, not a per-entry
+equality: it asks whether this ruleset's `required_status_checks` array
+contains an entry pinned to `idd-advisory-convergence` with
+`integration_id: 15368`, rather than asserting every entry in the array
+matches -- the array may hold other required checks alongside this one.
+The `integration_id` half of that check matters on its own: a
+differently-sourced check that merely shares the `idd-advisory-convergence`
+name would satisfy a bare context match, defeating the source pin this
+repository's fail-closed required-check handling relies on. `strict`
+confirms `strict_required_status_checks_policy`.
+
+Separately confirm the no-bypass condition on the ruleset itself:
+
+```sh
+gh api repos/kurone-kito/jsonresume-types/rulesets/20745987 \
+  --jq '{bypass_actors, current_user_can_bypass}'
+```
+
+Confirm `bypass_actors` is explicitly returned as an empty array. GitHub only
+includes this field for a caller with write access to the ruleset, so an
+**omitted** field means the check is unverifiable for that caller, not
+confirmed empty -- treat it accordingly rather than assuming no-bypass. (The
+ruleset-detail endpoint above does return both `rules` and `bypass_actors`
+together for a write-access caller, so the two calls above aren't required by
+a field split; they answer two different questions. `rules/branches/main`
+reports the branch's **effective** required-check rule, aggregated across
+every matching ruleset, and never exposes `bypass_actors` at all.
+`rulesets/{id}` reports this **one** ruleset's own configuration, including
+its bypass actors.)
 
 Two behaviors to expect, both by design:
 
@@ -203,10 +242,9 @@ verification pass; one was added later and is noted individually below.
   `idd-doctor` v0.6.0 does not yet read rulesets for this check. The
   ruleset itself is enforced and readable via the rulesets API -- this
   bullet is narrowly about why `idd-doctor`'s own check reads stale, not
-  about the ruleset's configuration. Note: the "Advisory-Convergence
-  Required Check" section above still shows a verification command against
-  that same now-404ing classic endpoint; it will 404 too until #75's
-  rewrite lands -- do not rely on it in the meantime.
+  about the ruleset's configuration. The "Advisory-Convergence Required
+  Check" section above now documents verification via the Rulesets API
+  (#75) instead of that now-404ing classic endpoint.
 
 ## v0.6.0 Re-import Notes
 
