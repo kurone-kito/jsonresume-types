@@ -22,7 +22,12 @@ autolabeler:
     title:
       - '/^\w+(\([^)]+\))?!:/'
     body:
+      # Conventional Commits allows either spelling as the breaking-change
+      # footer token (the spec requires "-" in place of whitespace in
+      # footer tokens generally, with "BREAKING CHANGE" as the one named
+      # exception) — match both so a hyphenated footer isn't missed.
       - '/BREAKING CHANGE:/'
+      - '/BREAKING-CHANGE:/'
   - label: enhancement
     title:
       - '/^feat(\([^)]+\))?!?:/'
