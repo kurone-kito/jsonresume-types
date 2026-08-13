@@ -185,9 +185,10 @@ verification pass; one was added later and is noted individually below.
   server-side-posts the F4 cleanup-evidence comment whenever the merging
   agent's own F4 step does not. Adoption stops the backlog from growing
   further going forward; it does not by itself retroactively clear the
-  pre-existing backlog (10 PRs as of this note) -- someone would still need
-  to run `idd-audit-pr-cleanup --pr <N> --apply --skip-claim-check` against
-  each listed PR to close that out.
+  pre-existing backlog -- someone would still need to run
+  `idd-audit-pr-cleanup --pr <N> --apply --skip-claim-check` against each
+  listed PR to close that out (re-run `idd-doctor --strict` for the current
+  count and example PRs, rather than trusting a number recorded here).
 - **`release-tag drift`** -- out of scope for the IDD import. Cutting a new
   release is roadmap #46's concern (`Roadmap: restore the release pipeline
   and the package's quality gates`), not #38's. This document does not track
