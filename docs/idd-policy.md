@@ -130,19 +130,22 @@ own). Verify the pinned check and its strict-policy flag with:
 
 ```sh
 gh api repos/kurone-kito/jsonresume-types/rules/branches/main \
-  --jq '.[] | select(.type == "required_status_checks")'
+  --jq '.[] | select(.type == "required_status_checks") | .parameters |
+  {matches: (.required_status_checks | any(.context ==
+  "idd-advisory-convergence" and .integration_id == 15368)), strict:
+  .strict_required_status_checks_policy}'
 ```
 
-Confirm the response's `.parameters` object satisfies all three:
-
-- `required_status_checks[].context == "idd-advisory-convergence"`
-- `required_status_checks[].integration_id == 15368`
-- `strict_required_status_checks_policy == true`
-
-The `integration_id` check matters on its own: a differently-sourced check
-that merely shares the `idd-advisory-convergence` name would satisfy the
-`context` match alone, defeating the source pin this repository's
-fail-closed required-check handling relies on.
+Confirm the response is `{"matches": true, "strict": true}`. `matches` is
+an **inclusion** check, not a per-entry equality: it asks whether the
+`required_status_checks` array contains an entry pinned to
+`idd-advisory-convergence` with `integration_id: 15368`, rather than
+asserting every entry in the array matches -- the array may hold other
+required checks alongside this one. The `integration_id` half of that
+check matters on its own: a differently-sourced check that merely shares
+the `idd-advisory-convergence` name would satisfy a bare context match,
+defeating the source pin this repository's fail-closed required-check
+handling relies on. `strict` confirms `strict_required_status_checks_policy`.
 
 Separately confirm the no-bypass condition on the ruleset itself:
 
