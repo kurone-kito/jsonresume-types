@@ -1,0 +1,81 @@
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+name: Detect generated type drift
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  type-drift:
+    name: Diff the generated types against the base branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Stages the pull request merge result
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup the pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - name: Prepare the Node.js environment
+        uses: actions/setup-node@v7
+        with:
+          cache: ${{ !env.ACT && 'pnpm' || '' }}
+          node-version-file: .node-version
+      - env:
+          HUSKY: 0
+        name: Install the dependencies (pull request head)
+        run: pnpm install --frozen-lockfile
+      - name: Build the generated types (pull request head)
+        run: pnpm run build
+      - name: Stash the head-side generated types
+        run: mv index.d.ts "$RUNNER_TEMP/head-index.d.ts"
+      - name: Stages the base branch into a scratch directory
+        uses: actions/checkout@v7
+        with:
+          path: base-branch
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.base.sha }}
+      - env:
+          HUSKY: 0
+        name: Install the dependencies (base branch)
+        run: pnpm install --frozen-lockfile
+        working-directory: base-branch
+      - name: Build the generated types (base branch)
+        run: pnpm run build
+        working-directory: base-branch
+      - name: Diff the generated types and write the job summary
+        run: |
+          set -u
+          base_file="base-branch/index.d.ts"
+          head_file="$RUNNER_TEMP/head-index.d.ts"
+          diff_file="$RUNNER_TEMP/type-drift.diff"
+          # GitHub Actions runs `run:` steps under `bash -eo pipefail` by
+          # default. `diff` exits 1 whenever the files differ -- the
+          # normal, expected outcome of a real schema bump -- so capturing
+          # its exit status must not trip `set -e`, or the job would fail
+          # on exactly the case it must not. Disable -e for this one
+          # command only (matches the pattern in post-merge-cleanup.yml).
+          set +e
+          diff -u "$base_file" "$head_file" > "$diff_file"
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            # shellcheck disable=SC2016
+            echo 'No type drift detected in `index.d.ts`.' | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$status" -eq 1 ]; then
+            {
+              # shellcheck disable=SC2016
+              echo '## Generated `index.d.ts` type drift'
+              echo
+              echo '```diff'
+              cat "$diff_file"
+              echo '```'
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "diff failed with exit status $status (base or head index.d.ts missing or unreadable)" >&2
+            exit 1
+          fi
