@@ -154,15 +154,17 @@ is a fresh converged review. Revisit this decision if the `24h` default
 ## Advisory-Wait Bot Exemption
 
 **Status**: `advisoryWait.exemptBotAuthoredPrs: true` (added during the
-v0.6.0 re-import, commit `9066d75`, `Refs #66`). `.github/idd/config.json`
+v0.6.0 re-import, commit `9066d75`, Refs #66). `.github/idd/config.json`
 also sets `advisoryWait.convergenceScope: "all-prs"`, so the
 `idd-advisory-convergence` required check normally applies to bot-authored
 PRs (e.g. Dependabot) too, on the same terms as agent-authored PRs. This
 repository's active Dependabot PRs predate any IDD claim-marker history, so
 they have no claim for the check's review-currency machinery to resolve
-against. The exemption skips the manual maintainer-waiver path for
-bot-authored PRs specifically, rather than leaving them permanently blocked
-on a check they were never claimed under.
+against. The exemption skips requiring manual maintainer intervention for
+bot-authored PRs specifically -- this repository's advisory-convergence
+check has no waiver mechanism at all (see "Waiver mode" above), so without
+the exemption those PRs would stay permanently blocked on a check they were
+never claimed under, with no escape path.
 
 ## Known `idd-doctor` Warnings
 
@@ -199,7 +201,10 @@ verification pass; one was added later and is noted individually below.
   `idd-doctor` v0.6.0 does not yet read rulesets for this check. The
   ruleset itself is enforced and readable via the rulesets API -- this
   bullet is narrowly about why `idd-doctor`'s own check reads stale, not
-  about the ruleset's configuration.
+  about the ruleset's configuration. Note: the "Advisory-Convergence
+  Required Check" section above still shows a verification command against
+  that same now-404ing classic endpoint; it will 404 too until #75's
+  rewrite lands -- do not rely on it in the meantime.
 
 ## v0.6.0 Re-import Notes
 
