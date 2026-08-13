@@ -263,8 +263,17 @@ pass does not need to re-investigate the same ground:
   pinned to `integration_id: 15368` on the `main` branch-protection
   ruleset, id `20745987`, added after the mid-session migration from
   classic branch protection to GitHub rulesets -- see #75 for the full
-  writeup). The flag itself stays unset (fail-closed default `false`) for
-  this re-import; revisit alongside #75.
+  writeup). The flag itself stayed unset (fail-closed default `false`) at
+  re-import time, pending out-of-band verification of the pinned
+  integration's producer identity. That verification completed and the
+  flag is now set to `true` (#87): `integration_id 15368` is GitHub's own
+  built-in "GitHub Actions" app, and exactly one workflow file in this
+  repository produces the `idd-advisory-convergence` check-run name, so
+  `idd-pre-merge-readiness`/`idd-ci-wait-state` no longer downgrade that
+  check once it is otherwise passing -- each helper's own fail-closed
+  label is unchanged (`unknown` in `idd-pre-merge-readiness`,
+  `"source-pinned"` in `idd-ci-wait-state`); only the downgrade itself
+  stops firing for this check.
 
 ## IDD Labels
 

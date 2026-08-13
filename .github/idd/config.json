@@ -10,6 +10,7 @@
     "heartbeatInterval": "PT12H"
   },
   "trustedMarkerActors": ["kurone-kito"],
+  "advisoryBotLogins": ["coderabbitai[bot]"],
   "workshop": {
     "exampleRepository": ""
   },
@@ -32,6 +33,9 @@
   "advisoryWait": {
     "convergenceScope": "all-prs",
     "exemptBotAuthoredPrs": true
+  },
+  "ciGate": {
+    "trustSourcePinnedRequiredChecks": true
   },
   "autopilotSuitability": {
     "floor": 3
