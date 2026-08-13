@@ -5,13 +5,12 @@ on:
       - published
 permissions:
   contents: read
+  id-token: write
   packages: write
 jobs:
   deploy:
     name: Build and deploy
     runs-on: ubuntu-latest
-    env:
-      INVALID_DUMMY_TOKEN: invalid-token
     steps:
       - name: Stages the pushed branch
         uses: actions/checkout@v7
@@ -22,20 +21,19 @@ jobs:
       - name: Prepare the Node.js environment
         uses: actions/setup-node@v7
         with:
-          cache: ${{ !env.ACT && 'pnpm' || '' }}
+          cache: pnpm
           node-version-file: .node-version
       - name: Resolve the dependencies
         run: pnpm install --frozen-lockfile
       - name: Build and release for NPM
-        uses: JS-DevTools/npm-publish@v4
-        with:
-          access: public
-          dry-run: ${{ !!env.ACT }}
-          token: ${{ !env.ACT && secrets.NPM_TOKEN || env.INVALID_DUMMY_TOKEN }}
+        run: pnpm publish --access public --no-git-checks
+      - name: Set up the .npmrc for the GitHub Packages registry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat << EOF > "${HOME}/.npmrc"
+          @kurone-kito:registry=https://npm.pkg.github.com/
+          //npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+          EOF
       - name: Build and release for GitHub Registry
-        uses: JS-DevTools/npm-publish@v4
-        with:
-          access: public
-          dry-run: ${{ !!env.ACT }}
-          registry: https://npm.pkg.github.com
-          token: ${{ !env.ACT && secrets.GITHUB_TOKEN || env.INVALID_DUMMY_TOKEN }}
+        run: pnpm publish --access public --no-git-checks
