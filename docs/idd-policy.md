@@ -133,10 +133,16 @@ gh api repos/kurone-kito/jsonresume-types/rules/branches/main \
   --jq '.[] | select(.type == "required_status_checks")'
 ```
 
-Confirm the response's `.parameters` object satisfies both:
+Confirm the response's `.parameters` object satisfies all three:
 
 - `required_status_checks[].context == "idd-advisory-convergence"`
+- `required_status_checks[].integration_id == 15368`
 - `strict_required_status_checks_policy == true`
+
+The `integration_id` check matters on its own: a differently-sourced check
+that merely shares the `idd-advisory-convergence` name would satisfy the
+`context` match alone, defeating the source pin this repository's
+fail-closed required-check handling relies on.
 
 Separately confirm the no-bypass condition on the ruleset itself:
 
