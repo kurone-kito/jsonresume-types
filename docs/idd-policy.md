@@ -274,6 +274,29 @@ pass does not need to re-investigate the same ground:
   label is unchanged (`unknown` in `idd-pre-merge-readiness`,
   `"source-pinned"` in `idd-ci-wait-state`); only the downgrade itself
   stops firing for this check.
+- **`ciGate.trustEmptyProtectionReads`** -- evaluated: the classic
+  branch-protection endpoint
+  (`GET /repos/{owner}/{repo}/branches/main/protection`) has 404d with
+  the specific body `"Branch not protected"` since `main`'s protection
+  migrated from classic protection to the ruleset described above (see
+  #75). Per this repository's fail-closed default, that ambiguous `404`
+  blocked `idd-pre-merge-readiness`/`idd-merge-execute`'s own
+  required-check read on every PR since the migration (confirmed live on
+  #88's own merge-readiness evaluation, which needed a manual
+  live-state override), reporting `cannot determine required checks:
+  protection/ruleset unreadable` even when the actual required check was
+  independently confirmed green. Out-of-band verification completed
+  (#89): the `404` body is the genuine-absence shape, not a generic
+  not-found; and the same automation token successfully reads the
+  comparably-or-more-sensitive Rulesets endpoints
+  (`rulesets/20745987`, `rules/branches/main`) for the same branch, with
+  no permission-masking pattern observed anywhere. The flag is now set to
+  `true`: `idd-pre-merge-readiness`/`idd-merge-execute` no longer fail
+  closed on this specific `404` shape. This is independent of
+  `trustSourcePinnedRequiredChecks` above -- that flag trusts a *named,
+  present* required check's producer identity, while this one trusts a
+  `404` read itself as genuinely-empty protection/ruleset configuration
+  rather than a masked permission failure.
 
 ## IDD Labels
 
