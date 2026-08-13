@@ -17,9 +17,19 @@ jobs:
   update_release_draft:
     permissions:
       contents: write
+      issues: write
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
+      # Autolabeler is a separate composite action from the root
+      # release-drafter action (see release-drafter/release-drafter's own
+      # autolabeler/README.md) -- it must run as its own step to apply
+      # .github/release-drafter.yml's `autolabeler` rules to this PR.
+      # `issues: write` above is required because it applies labels via
+      # the Issues API (shared by pull requests).
+      - uses: release-drafter/release-drafter/autolabeler@v7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: release-drafter/release-drafter@v7
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
