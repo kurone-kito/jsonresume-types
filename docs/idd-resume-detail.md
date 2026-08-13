@@ -1,3 +1,10 @@
+---
+type: reference
+title: IDD Resume — Detail Reference
+description: Provides the full narrative detail behind idd-resume.instructions.md's compact routing tables for branches that need careful judgment.
+tags: [resume, recovery]
+---
+
 # IDD Resume — Detail Reference
 
 This document provides full narrative for the routing branches and worktree

@@ -20,7 +20,10 @@ see A0), A3 (default; see decision tree).
 
 The configured authoring label is `issueAuthoring.authoringLabelName`
 (default: `status:authoring`); the stale threshold is
-`issueAuthoring.authoringStaleAge` (default: `PT4H`).
+`issueAuthoring.authoringStaleAge` (default: `PT4H`). The label doubles
+as the draft marker for a held issue (issue-authoring skill's Stage 1)
+and the claim-suppression lock this guard enforces — Discover treats
+either role the same way: skip the issue while the label is present.
 
 A0-T, A0-O, and A3 must treat a matching label as not startable. A0-T
 reports `Issue #N is currently being authored` and stops before claim;
@@ -350,7 +353,7 @@ apply this decision tree — do not silently expand scope:
    filtered out): report each candidate and the filter criterion it
    failed, then proceed to step 5.
 
-   See [Discover — A3 Diagnostic](../../docs/idd-design-rationale.md#a3---diagnostic-all-candidates-blocked-by-an-open-roadmap)
+   See [Discover — A3 Diagnostic](../../docs/idd-design-rationale.md#a3--diagnostic-all-candidates-blocked-by-an-open-roadmap)
    for the marker-misuse pattern this case typically indicates.
 
 5. **Request explicit opt-in** — ask the operator: "No roadmap-scoped
@@ -609,7 +612,7 @@ roadmap is open belong in the roadmap's task list as `- [ ] #NNN`
 entries; `blocked-by` is reserved for issues that must wait for a
 separate, prior roadmap to close (cross-phase sequential dependency) —
 see the
-[A3 diagnostic](../../docs/idd-design-rationale.md#a3---diagnostic-all-candidates-blocked-by-an-open-roadmap)
+[A3 diagnostic](../../docs/idd-design-rationale.md#a3--diagnostic-all-candidates-blocked-by-an-open-roadmap)
 for the resulting deadlock pattern.
 
 ## Scope invariant (summary)

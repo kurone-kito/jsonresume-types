@@ -1,3 +1,10 @@
+---
+type: reference
+title: IDD Comment Minimization
+description: Defines the live status digest contract and the safe procedure for minimizing completed review feedback and stale operational markers after merge.
+tags: [comment-minimization, cleanup]
+---
+
 # IDD Comment Minimization
 
 <!-- cspell:words AAAAB Unminimize Wpaqs unminimized -->
@@ -144,12 +151,22 @@ It then parses the report and posts the canonical
 PR receives evidence within a few minutes even when the agent did
 not run F4 manually.
 
-The template (`idd-template/`) does **not** ship this workflow
-because `scripts/audit-pr-cleanup.mjs` is part of the optional
-helper bundle and is not present in default instructions-only
-installs. Adopters who install the helper can copy the source
-workflow file as-is; permissions required are
-`contents: read`, `issues: write`, and `pull-requests: write`, plus
+The template (`idd-template/`) ships a generic counterpart at
+`idd-template/.github/workflows/post-merge-cleanup.yml`, part of the
+core file set `idd-onboard.mjs --import` copies automatically.
+Earlier template versions omitted this file because
+`scripts/audit-pr-cleanup.mjs` is part of the optional `vendored-node`
+helper bundle and is not present in default `instructions-only`
+installs, so a literal copy would only ever work for one profile. The
+template copy instead resolves the cleanup-audit invocation through
+the repository's configured `helperRuntime.profile` (see
+[Helper Runtime Profiles](idd-helper-scripts.md#helper-runtime-profiles)):
+it runs the equivalent invocation under `vendored-node`,
+`package-manager`, and `ephemeral-npx`, and skips the audit and
+evidence-comment steps entirely under `instructions-only` (or when no
+profile is configured), where no runnable helper command exists for
+any profile. Permissions required are `contents: read`,
+`issues: write`, and `pull-requests: write`, plus
 `pull_request_target` (not `pull_request`) so that fork PRs can
 post comments under a writeable `GITHUB_TOKEN`.
 

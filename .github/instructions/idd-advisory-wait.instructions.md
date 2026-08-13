@@ -5,7 +5,7 @@ Shared advisory-wait protocol used by **E14**
 and **F3** (`idd-merge.instructions.md`). Policy constants (cap/windows)
 are named in
 [`docs/policy-constants.md`](../../docs/policy-constants.md); this file
-owns behavior.
+owns behavior; `advisoryWait.exemptBotAuthoredPrs` is convergence-only.
 
 ## Scope — Copilot-only settle/wait window
 
@@ -372,8 +372,8 @@ alone never proves `COPILOT_UNAVAILABLE` (see **State**).
 ### Terminal routing (`#1570`)
 
 One `idd-external-check-waiver:` marker (selector
-`idd-advisory-convergence`, current HEAD, active claim) satisfies both
-consumers: the CI check's `terminal` field (its waiver hatch also opens
+`idd-advisory-convergence`, current HEAD, active claim/`none`) satisfies
+both consumers: the CI check's `terminal` field (its waiver hatch opens
 on `COPILOT_UNAVAILABLE` independent of `deadline.passed` — `ready`
 still needs a valid waiver), and F2/F3's `advisoryWait.copilotUnavailable`/
 `copilotUnavailableWaived` (`f3Outcome` unchanged; unwaived adds
@@ -386,8 +386,8 @@ still needs a valid waiver), and F2/F3's `advisoryWait.copilotUnavailable`/
 > recovery cycle is exhausted and the terminal window elapsed with no
 > current-HEAD review. A maintainer must post an
 > `idd-external-check-waiver:` marker for selector
-> `idd-advisory-convergence`, this HEAD, and the active claim before
-> this PR can proceed.
+> `idd-advisory-convergence`, this HEAD, and active claim/`none` before
+> merging.
 
 **Waived**: rerun the existing `idd-advisory-convergence` run (never
 `workflow_dispatch` — see Rerun mechanics below); both fields recompute
