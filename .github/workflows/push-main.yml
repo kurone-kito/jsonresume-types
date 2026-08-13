@@ -26,8 +26,12 @@ jobs:
       # autolabeler/README.md) -- it must run as its own step to apply
       # .github/release-drafter.yml's `autolabeler` rules to this PR.
       # `issues: write` above is required because it applies labels via
-      # the Issues API (shared by pull requests).
-      - uses: release-drafter/release-drafter/autolabeler@v7
+      # the Issues API (shared by pull requests). This job also runs on
+      # `push` (to update the release draft after merge); the autolabeler
+      # action itself throws on any event other than pull_request(_target),
+      # so it must be gated to pull_request events only.
+      - if: github.event_name == 'pull_request'
+        uses: release-drafter/release-drafter/autolabeler@v7
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: release-drafter/release-drafter@v7
