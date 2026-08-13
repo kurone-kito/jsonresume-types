@@ -154,7 +154,8 @@ is a fresh converged review. Revisit this decision if the `24h` default
 ## Advisory-Wait Bot Exemption
 
 **Status**: `advisoryWait.exemptBotAuthoredPrs: true` (added during the
-v0.6.0 re-import, commit `9066d75`, Refs #66). `.github/idd/config.json`
+v0.6.0 re-import, commit `9066d7518881a7f78280e7ad199734e887d6fbd5`,
+Refs #66). `.github/idd/config.json`
 also sets `advisoryWait.convergenceScope: "all-prs"`, so the
 `idd-advisory-convergence` required check normally applies to bot-authored
 PRs (e.g. Dependabot) too, on the same terms as agent-authored PRs. This
