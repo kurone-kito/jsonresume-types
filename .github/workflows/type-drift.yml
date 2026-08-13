@@ -53,8 +53,16 @@ jobs:
           base_file="base-branch/index.d.ts"
           head_file="$RUNNER_TEMP/head-index.d.ts"
           diff_file="$RUNNER_TEMP/type-drift.diff"
+          # GitHub Actions runs `run:` steps under `bash -eo pipefail` by
+          # default. `diff` exits 1 whenever the files differ -- the
+          # normal, expected outcome of a real schema bump -- so capturing
+          # its exit status must not trip `set -e`, or the job would fail
+          # on exactly the case it must not. Disable -e for this one
+          # command only (matches the pattern in post-merge-cleanup.yml).
+          set +e
           diff -u "$base_file" "$head_file" > "$diff_file"
           status=$?
+          set -e
           if [ "$status" -eq 0 ]; then
             # shellcheck disable=SC2016
             echo 'No type drift detected in `index.d.ts`.' | tee -a "$GITHUB_STEP_SUMMARY"
