@@ -270,7 +270,10 @@ pass does not need to re-investigate the same ground:
   built-in "GitHub Actions" app, and exactly one workflow file in this
   repository produces the `idd-advisory-convergence` check-run name, so
   `idd-pre-merge-readiness`/`idd-ci-wait-state` no longer downgrade that
-  check to unresolved (`"source-pinned"`) once it is otherwise passing.
+  check once it is otherwise passing -- each helper's own fail-closed
+  label is unchanged (`unknown` in `idd-pre-merge-readiness`,
+  `"source-pinned"` in `idd-ci-wait-state`); only the downgrade itself
+  stops firing for this check.
 
 ## IDD Labels
 
