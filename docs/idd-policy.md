@@ -133,8 +133,10 @@ gh api repos/kurone-kito/jsonresume-types/rules/branches/main \
   --jq '.[] | select(.type == "required_status_checks")'
 ```
 
-Confirm `required_status_checks[].context == "idd-advisory-convergence"` and
-`strict_required_status_checks_policy == true`. Separately confirm the
+Confirm `.parameters.required_status_checks[].context ==
+"idd-advisory-convergence"` and
+`.parameters.strict_required_status_checks_policy == true` -- both fields
+nest under `.parameters` in the raw response. Separately confirm the
 no-bypass condition on the ruleset itself:
 
 ```sh
