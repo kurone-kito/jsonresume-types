@@ -151,39 +151,82 @@ check therefore has no maintainer-waiver escape path -- the only way through
 is a fresh converged review. Revisit this decision if the `24h` default
 `advisoryWait.convergenceDeadline` proves too tight in practice.
 
+## Advisory-Wait Bot Exemption
+
+**Status**: `advisoryWait.exemptBotAuthoredPrs: true` (added during the
+v0.6.0 re-import, commit `9066d7518881a7f78280e7ad199734e887d6fbd5`,
+Refs #66). `.github/idd/config.json`
+also sets `advisoryWait.convergenceScope: "all-prs"`, so the
+`idd-advisory-convergence` required check normally applies to bot-authored
+PRs (e.g. Dependabot) too, on the same terms as agent-authored PRs. This
+repository's active Dependabot PRs predate any IDD claim-marker history, so
+they have no claim for the check's review-currency machinery to resolve
+against. The exemption skips requiring manual maintainer intervention for
+bot-authored PRs specifically -- this repository's advisory-convergence
+check has no waiver mechanism at all (see "Waiver mode" above), so without
+the exemption those PRs would stay permanently blocked on a check they were
+never claimed under, with no escape path.
+
 ## Known `idd-doctor` Warnings
 
-`idd-doctor --strict` reports these findings as of the #37 import
-verification pass, each an intentional, explained divergence rather than an
-unresolved defect:
+`idd-doctor --strict` reports these findings as intentional, explained
+divergences rather than unresolved defects. Most trace to the #37 import
+verification pass; one was added later and is noted individually below.
 
-- **`review policy signal not found in docs or entry files`** -- upstream
-  check bug, not a real gap. `idd-doctor.mts`'s review-policy-signal check
-  does a plain corpus substring search for one of five literal signal
-  strings. One of those five is this repository's own review-profile name,
-  but space-joined instead of hyphenated the way the actual policy
-  vocabulary is written everywhere else -- this document's own
-  [PR Review Policy](#pr-review-policy) section above and
-  `.github/idd/config.json`'s `reviewPolicy` field both use the hyphenated
-  form. That one-character difference is why the check fails to match; it is
-  not this repository's job to carry a local patch for an upstream script
-  bug. (Deliberately not spelling out the exact space-joined search string
-  in this note: doing so would make this very sentence satisfy the buggy
-  search, which is the wrong reason for the warning to disappear.)
-- **`post-merge cleanup backlog`** -- predates the IDD import. The PRs the
-  warning lists (#47-#62) merged before the F4 cleanup-evidence marker
-  convention existed in this repository (before #32), so none of them carry
-  it. This repository does not run the optional server-side
-  `post-merge-cleanup.yml` workflow (upstream ships it only in the
-  `idd-skill` source repository itself, not the distributed template), so
-  the marker is posted only when an agent runs F4 manually going forward.
-  The backlog will not grow further; it will not shrink retroactively either
-  unless someone runs `idd-audit-pr-cleanup --pr <N> --apply --skip-claim-check`
-  against each listed PR.
+- **`post-merge cleanup backlog`** -- predates both the IDD import and the
+  `post-merge-cleanup.yml` adoption below. The check scans a rolling
+  recent-merge window (`idd-doctor`'s default: the last 14 days), so its
+  example PRs and count shift over time rather than naming a fixed
+  historical range; any PR that merged before the F4 cleanup-evidence
+  marker convention existed in this repository (before #32) never carries
+  it regardless. This repository has since adopted the optional
+  server-side `post-merge-cleanup.yml` workflow (issue #67, PR #74, part of
+  `idd-skill` v0.6.0's core template set -- no longer something upstream
+  ships only in the `idd-skill` source repository itself), which
+  server-side-posts the F4 cleanup-evidence comment whenever the merging
+  agent's own F4 step does not. Adoption stops the backlog from growing
+  further going forward; it does not by itself retroactively clear the
+  pre-existing backlog -- someone would still need to run
+  `idd-audit-pr-cleanup --pr <N> --apply --skip-claim-check` against each
+  listed PR to close that out (re-run `idd-doctor --strict` for the current
+  count and example PRs, rather than trusting a number recorded here).
 - **`release-tag drift`** -- out of scope for the IDD import. Cutting a new
   release is roadmap #46's concern (`Roadmap: restore the release pipeline
   and the package's quality gates`), not #38's. This document does not track
   release cadence.
+- **`branch protection not readable for kurone-kito/jsonresume-types:main`**
+  -- added after the mid-session migration of `main`'s branch protection
+  from classic protection to a GitHub ruleset (see #75 for the full
+  writeup). `idd-doctor` v0.6.0's branch-protection check reads the classic
+  `GET /repos/{owner}/{repo}/branches/main/protection` endpoint, which now
+  404s (`"Branch not protected"`) because enforcement moved to the ruleset;
+  `idd-doctor` v0.6.0 does not yet read rulesets for this check. The
+  ruleset itself is enforced and readable via the rulesets API -- this
+  bullet is narrowly about why `idd-doctor`'s own check reads stale, not
+  about the ruleset's configuration. Note: the "Advisory-Convergence
+  Required Check" section above still shows a verification command against
+  that same now-404ing classic endpoint; it will 404 too until #75's
+  rewrite lands -- do not rely on it in the meantime.
+
+## v0.6.0 Re-import Notes
+
+Recorded during the `idd-skill` v0.6.0 re-import (roadmap #64) so a future
+pass does not need to re-investigate the same ground:
+
+- **Pin reference**: `package.json` pins `@kurone-kito/idd-skill` to
+  `github:kurone-kito/idd-skill#f16660486383ce710a0f33f49aa3331ddece93de`,
+  which is the commit the `v0.6.0` tag resolves to. Future re-imports
+  should target the next named tag rather than an arbitrary `main` commit.
+- **`helperRuntime.packageSpec`** -- evaluated, not applicable. This flag
+  only affects the `ephemeral-npx` profile; this repository uses
+  `package-manager`.
+- **`ciGate.trustSourcePinnedRequiredChecks`** -- evaluated: a
+  source-pinned required check now does exist (`idd-advisory-convergence`,
+  pinned to `integration_id: 15368` on the `main` branch-protection
+  ruleset, id `20745987`, added after the mid-session migration from
+  classic branch protection to GitHub rulesets -- see #75 for the full
+  writeup). The flag itself stays unset (fail-closed default `false`) for
+  this re-import; revisit alongside #75.
 
 ## IDD Labels
 
