@@ -31,7 +31,7 @@ importers:
         version: 0.23.0-alpha.1(@commitlint/config-conventional@21.2.0)
       '@kurone-kito/cspell-config':
         specifier: ^0.23.0-alpha.1
-        version: 0.23.0-alpha.1(cspell@10.0.1)
+        version: 0.23.0(cspell@10.0.1)
       '@kurone-kito/idd-skill':
         specifier: github:kurone-kito/idd-skill#f16660486383ce710a0f33f49aa3331ddece93de
         version: https://codeload.github.com/kurone-kito/idd-skill/tar.gz/f16660486383ce710a0f33f49aa3331ddece93de
@@ -485,11 +485,11 @@ packages:
       '@commitlint/config-conventional':
         optional: true
 
-  '@kurone-kito/cspell-config@0.23.0-alpha.1':
-    resolution: {integrity: sha512-8Uwv8kJNtdB9ucNcshB9ZQW4Clf4N3r4J6L67uvcGLcy8VkKmc+Te9UsSB8Q3ff9fA8VRtekOPzQlRf4POz1Gg==}
-    engines: {node: ^20.18 || ^22 || >=24}
+  '@kurone-kito/cspell-config@0.23.0':
+    resolution: {integrity: sha512-8fmxEQa0PlChqActw4ybqgYU6emSOQUUqVr93S4REjpu4KC+JrJ8C+EJPjMU8r4Xate4bMc5FrlbJL46VtkmVA==}
+    engines: {node: ^22.23.2 || ^24.2.0 || >=26.0.0}
     peerDependencies:
-      cspell: '*'
+      cspell: '>=8.x.x'
     peerDependenciesMeta:
       cspell:
         optional: true
@@ -1791,7 +1791,7 @@ snapshots:
     optionalDependencies:
       '@commitlint/config-conventional': 21.2.0
 
-  '@kurone-kito/cspell-config@0.23.0-alpha.1(cspell@10.0.1)':
+  '@kurone-kito/cspell-config@0.23.0(cspell@10.0.1)':
     optionalDependencies:
       cspell: 10.0.1
 
