@@ -11,6 +11,7 @@ words:
   - deprioritize
   - desync
   - desynced
+  - dofork
   - esync
   - GHEC
   - GHES
@@ -22,6 +23,7 @@ words:
   - kuroné
   - minimizable
   - ministral
+  - nektos
   - npms.io
   - nvmrc
   - onnx
@@ -29,6 +31,7 @@ words:
   - pyproject
   - pytest
   - qwen
+  - remediations
   - rollup
   - toctou
   - tsfile
@@ -42,5 +45,6 @@ words:
   - unrouted
   - unscored
   - unwaived
+  - vrchat
   - waivable
   - WHATWG
