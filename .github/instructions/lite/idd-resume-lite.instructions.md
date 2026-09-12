@@ -123,15 +123,31 @@ the issue branch.
 ## Step 3 — PR / CI / review route (helper-first)
 
 On helper-enabled profiles, run `resume-route-selection.mjs --issue <N>`
-(and stop-and-ask on failure — do not use the written table). Map `route`:
+(and stop-and-ask on failure — do not use the written table). Map
+`route`:
 
-| `route`                | Next phase                                                                            |
-| ---------------------- | ------------------------------------------------------------------------------------- |
-| `D1`                   | `idd-pr-submit-lite.instructions.md`, from D1 (sync/push/open PR)                     |
-| `D4`                   | `idd-pr-submit-lite.instructions.md`, D4 section only (CI wait) — do not re-run D1-D3 |
-| `E1` / `E15` / `Esync` | Review snapshot / CI wait / branch-sync                                               |
-| `F1` / `F2`            | `idd-pre-merge-lite.instructions.md`, from the top (covers both F1 and F2)            |
-| `stop`                 | STOP — report helper `reason`                                                         |
+- `D1` → `idd-pr-submit-lite.instructions.md`, from D1 (sync/push/open
+  PR)
+- `D4` → `idd-pr-submit-lite.instructions.md`, D4 section only (CI
+  wait) — do not re-run D1-D3
+- `E1` → `idd-review-snapshot-lite.instructions.md`
+- `E15` → `idd-review-fix-lite.instructions.md` E15 (invokes
+  `idd-ci-lite.instructions.md` for polling)
+- `Esync` → the standard `idd-review-triage.instructions.md`'s
+  **E-phase branch-sync check** for classification only — see note
+  below
+- `F1` / `F2` → `idd-pre-merge-lite.instructions.md`, from the top
+  (covers both F1 and F2)
+- `stop` → STOP — report helper `reason`
+
+`Esync` resumes at the standard
+`idd-review-triage.instructions.md`'s **E-phase branch-sync check**
+for branch-state classification only. Two of its exits point outside
+the lite profile: the `clean` exit continues to non-lite
+`idd-pre-merge.instructions.md` — go to
+`idd-pre-merge-lite.instructions.md` instead. The sync path's step 6
+returns to non-lite `idd-review-snapshot.instructions.md` — return to
+`idd-review-snapshot-lite.instructions.md` (E1) instead.
 
 Before any mutation after routing: re-validate claim ownership, PR HEAD,
 and CI live state.
@@ -147,6 +163,11 @@ Written table (`instructions-only` profile only):
 | Success | clean reviews; branch clean                | → F2                  |
 | Success | clean; branch behind only                  | → F1 then F2 or sync  |
 | Success | content conflict                           | → Esync               |
+
+Above, `E1` / `E15` / `Esync` route as in the Step 3 list and
+**E-phase branch-sync check** note above (which also names
+`idd-review-snapshot-lite.instructions.md` and
+`idd-ci-lite.instructions.md`).
 
 Forced-handoff recovery on an open PR: final success still → **E1** until
 this claim posts its own review-watermark and baseline.

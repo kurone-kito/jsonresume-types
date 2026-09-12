@@ -79,7 +79,11 @@ following:
    the package-manager-profile `idd:claim-lock` command with the same
    arguments — resolve the exact command from
    `docs/idd-helper-scripts.md` if unsure). A `collision` result is
-   fail-closed: stop rather than proceed.
+   fail-closed: stop rather than proceed. Then, separately, run
+   `--read-tokens --worktree <this-worktree-path> --claim-id <id>`
+   and require `present: true` with no `malformed`; otherwise recover
+   per `docs/idd-helper-scripts.md` (gated: each step succeeds,
+   `reacquired: true` both ends), else stop.
 6. If any check fails, stop.
 
 ## D1 — Sync main before first push
@@ -127,7 +131,7 @@ This section's rebase only applies **before the branch's first push**.
        re-run the helper after a short wait, up to 3 attempts; only a
        result still `"recheck"` after that budget falls through to stop
        per the condition above.
-     - Any other value (`"merge-main"`, `"policy-required-update"`,
+     - Any other value (`"merge-base"`, `"policy-required-update"`,
        `"force-push-exception"`, `"hold-unknown"`, or the helper is
        unavailable, fails, or disagrees with live GitHub state): stop
        per the condition above — this needs either the merge-based
@@ -208,7 +212,14 @@ loop instead of returning to this D1 rebase path.
    background/rationale only when it materially affects review. Ground
    any background/rationale only in the issue discussion, commits,
    diff, or explicit operator instructions — omit rather than
-   speculate.
+   speculate. The prose sections follow the resolved `authoringLanguage` value
+   from `.github/idd/config.json` (fixed tag, the claimed issue's own body
+   language for `match-source`, or English if absent — see
+   [Authoring Language](../../../docs/customization.md#authoring-language));
+   this never changes any machine-parsed marker or exact-regex-matched visible
+   line, which stays canonical regardless — concretely, the closing keyword line
+   stays canonical English: GitHub's parser and D3.5's verification regex below
+   match only the English keyword forms.
 4. **Closing keyword**: write a plain-text line such as `Closes #N` for
    the claimed issue number, on its own line. GitHub recognizes these
    keyword forms (case-insensitive): `close`, `closes`, `closed`, `fix`,
@@ -226,6 +237,21 @@ loop instead of returning to this D1 rebase path.
 7. If CODEOWNERS or expected reviewers are not auto-assigned, request
    them explicitly: `gh pr edit {pr-number} --add-reviewer
    {reviewer-login}`.
+8. **Do not create follow-up issues directly** — never call `gh issue
+   create` (or the REST issues API) yourself. Recommended follow-ups
+   stay in the PR body prose above; if one is important enough to file
+   now, invoke the `issue-authoring` skill instead.
+9. **Live-operator-directed immediate-fix carve-out**: a live operator
+   may direct an immediate fix for a blocking bug unrelated to the
+   claimed work instead of routing it through `issue-authoring` first.
+   Cross-reference the originating claimed issue in the side-fix PR
+   body with a non-closing reference (`Refs #N`, never
+   `Closes`/`Fixes`/`Resolves`) — D3.5 below applies only to the
+   side-fix's own linked issue, if any, never to the originating one.
+   How the session obtains a branch/worktree/claim for the side-fix,
+   and how its own completion avoids releasing the originating claim,
+   is not yet defined (see `idd-pr-submit.instructions.md`'s matching
+   carve-out).
 
 ### D3.5 — Verify closing keyword detection
 
@@ -364,11 +390,11 @@ than the run it supersedes. Once both have completed, the later
    external target rather than an Actions run; or its entry has `type:
    "check-run"` but an empty `url` (the upstream `detailsUrl` was
    itself absent). Otherwise resolve the rerun
-   decision from the
-   run's own history: `gh run view <run-id-from-url> --json attempt` —
-   GitHub's `attempt` starts at `1` for a never-rerun run, so pass
-   `attempt - 1` as `<count>` to `node scripts/ci-wait-policy.mjs
-   --rerun-count <count>`, never this wait's own memory. If it allows
+   decision directly from the run's own live state:
+   `node scripts/ci-wait-policy.mjs --run-id <run-id-from-url>`
+   (`--owner`/`--repo` when targeting a different repository) — this
+   derives the budget mechanically from the run's own `run_attempt`
+   field, never this wait's own memory. If it allows
    a rerun, rerun that check once as a **whole-run rerun, not
    `--failed`** (`gh run rerun <run-id-from-url>`) — a stalled check
    has no failed jobs to selectively rerun, only a run that never
@@ -395,17 +421,20 @@ than the run it supersedes. Once both have completed, the later
      read-only) to classify every instance and print the exact `gh run
      rerun` command for the rerun-eligible one, run that command
      verbatim, then resume step 6's polling for this one check.
-   - If a maintainer has posted a valid external-check waiver for this
-     exact HEAD: rerun the `idd-advisory-convergence` check once (`gh
-     run rerun --failed <run-id>`, using the run id from `checks[]`'s
-     entry for it) so it re-evaluates and reflects the waiver, then
-     resume step 6's normal polling for this one check instead of
-     reading `requiredChecks.status` a single time immediately — a
-     fresh rerun is asynchronous and commonly still `pending` right
-     after it starts. If it settles to `success`, go to step 7. If
-     step 6's own timeout elapses while it is still non-passing, stop
-     per the condition above — do not rerun a second time.
-   - Absent a valid waiver for this HEAD: exit CI-wait now and proceed
-     directly to E1. This never relaxes the
-     merge gate: the check stays required, and F2 re-verifies it
-     independently before merge.
+   - If a maintainer has posted a valid **and effective** external-check
+     waiver for this exact HEAD (effective per
+     `idd-pr-submit.instructions.md` D4: `deadline.passed` is true or
+     `terminal.state` is `COPILOT_UNAVAILABLE`): rerun the
+     `idd-advisory-convergence` check once (`gh run rerun --failed
+     <run-id>`, using the run id from `checks[]`'s entry for it) so it
+     re-evaluates and reflects the waiver, then resume step 6's normal
+     polling for this one check instead of reading
+     `requiredChecks.status` a single time immediately — a fresh rerun
+     is asynchronous and commonly still `pending` right after it
+     starts. If it settles to `success`, go to step 7. If step 6's own
+     timeout elapses while it is still non-passing, stop per the
+     condition above — do not rerun a second time.
+   - Absent an effective waiver for this HEAD: exit CI-wait now and
+     proceed directly to E1. This never relaxes the merge gate: the
+     check stays required, and F2 re-verifies it independently before
+     merge.

@@ -37,8 +37,9 @@ CI-polling instructions instead of this file.
 ## Helper-first canonical path
 
 1. Resolve policy: `node scripts/ci-wait-policy.mjs` (append
-   `--rerun-count <count>` for the rerun-budget decision). Resolve the
-   package-manager / ephemeral-npx equivalent from
+   `--run-id <run-id>` — preferred, derives the rerun budget from
+   `run_attempt` — or `--rerun-count <count>` as a manual fallback).
+   Resolve the package-manager / ephemeral-npx equivalent from
    `docs/idd-helper-scripts.md`. This helper already resolves
    `ciWait.*` from `.github/idd/config.json` and emits the final
    `runningTimeout` / `generationTimeout` / `rerunPolicy` values
@@ -156,4 +157,8 @@ Schedule one wake at the expected completion interval, or background
 the wait only when the topology is confirmed to route completion back
 to this turn; otherwise wait synchronously. Batch every post-wait
 action (disposition, replies, marker, next gate) into one turn. Do not
-insert "is it done yet?" turns.
+insert "is it done yet?" turns. Never end a turn on a future-tense wait
+promise ("I will wait...") with no wait mechanism actually armed — arm
+one of the mechanisms above first. No wait mechanism here may poll a
+non-primary bot's review state either — see
+`idd-advisory-wait-lite.instructions.md`'s Scope boundary section.
