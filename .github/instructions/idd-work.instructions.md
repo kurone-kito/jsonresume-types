@@ -344,11 +344,14 @@ Draft an implementation plan and post it as an issue comment, then run
 a critique pass for correctness and concreteness (see
 `idd-overview-appendix.instructions.md` for per-agent implementation),
 and post the refined final plan as a follow-up or update to the same
-comment. After the final plan comment is posted and claim ownership is
-re-validated, update the issue live status digest: `Phase` is `B2
-planned`, `Open blockers` is `none` unless the plan found a blocker,
-`Next action` is `B3 implement`, and `Authoritative by` points to the
-plan comment and verified claim.
+comment. After the final plan comment is posted, update the issue live
+status digest: `Phase` is `B2 planned`, `Open blockers` is `none`
+unless the plan found a blocker, `Next action` is `B3 implement`, and
+`Authoritative by` points to the plan comment and verified claim.
+
+Claim ownership revalidation needs no separate check here: it already
+applies to every B2 mutation via the
+[claim revalidation gate](idd-overview-core.instructions.md#claim-revalidation-gate).
 
 ## B3 — Implement
 
@@ -570,8 +573,11 @@ anything it reports.
 
 An unmet floor is not a new failure class: run or fix **fix-validate**
 the same way the Project commands table handles a failing
-**pre-push-validate** ("If lint fails, run fix-validate, commit, then
-re-run pre-push-validate").
+**pre-push-validate**.
+
+Claim ownership revalidation needs no separate check here: it already
+applies to every C5 fix commit via the
+[claim revalidation gate](idd-overview-core.instructions.md#claim-revalidation-gate).
 
 If anything changed, commit atomically.
 

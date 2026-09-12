@@ -164,8 +164,8 @@ claim-id.
 In addition to the `{claim-id}` check, verify that the mutation is
 about to run from the worktree named in the active claim's `branch:`
 field. This **cwd-vs-claim check** applies only to mutations made
-from inside the implementation worktree contract (B3, D, E, and F2/F3
-phases):
+from inside the implementation worktree contract (B2, B3, C5, D, E,
+and F2/F3 phases):
 
 Scope — the check runs **only** when **all** of the following are
 true:
