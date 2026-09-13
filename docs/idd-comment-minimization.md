@@ -125,15 +125,97 @@ The JSON report includes these fields:
 
 ## Timing
 
-Run minimization only after one of these is true:
+F4 (merge-gated) cleanup is the default timing for every marker or
+comment kind not explicitly classified `wired` in `MARKER_HIDE_POLICY`
+(`src/scripts/marker-helpers.mts`). For those, run minimization only
+after one of these is true:
 
 - the PR has already merged
 - a maintainer explicitly starts a merged-PR audit
 
-Do not minimize comments during active E or F gates. In particular, do
-not minimize comments that still determine review currency, advisory
-wait state, unresolved-thread state, unreplied-comment state, hold
-state, or a pending maintainer decision.
+**Exception -- hide-at-post-time for `wired` families** (issue #731,
+issue #733, issue #2751, issue #2754, issue #2755). A `wired` family
+may be minimized immediately after its own new instance's POST+verify
+succeeds, pre-merge, using that family's documented
+supersession/grouping key -- never for any other reason during an
+active E or F gate. Six families ship this today, in two different
+mechanisms:
+
+- **Agent-followed instruction step** -- the calling phase's own
+  instructions direct the agent to run the minimize step by hand
+  (`node scripts/minimize-superseded-markers.mjs ... --apply`) after
+  posting: the claim chain
+  (`claimed-by:`/`unclaimed-by:`, grouped by
+  `supersedes:` lineage, `idd-claim.instructions.md`), `review-watermark:`/
+  `review-baseline:` (grouped by same claim-id,
+  `idd-review-snapshot.instructions.md`), and the `advisory-wait` family
+  (`advisory-wait:`/`advisory-wait-recovery:`/`<!-- advisory-wait:`/
+  `advisory-reroll:`, grouped by embedded HEAD SHA mismatch, AW3-H,
+  `idd-advisory-wait.instructions.md`).
+- **Code-automated inside the helper itself** (#2754, #2755) -- no
+  agent-followed instruction step exists or is needed for these
+  three, since their grouping keys are purely mechanical:
+  `review-ack:` (grouped by embedded HEAD SHA mismatch) and
+  `copilot-unavailable:` (grouped by the same `claim:` value and a
+  strictly lower `attempt:` number -- a same-or-higher attempt is left
+  alone) are both hidden by
+  `post-idd-marker.mjs` itself right after its own new marker POSTs
+  successfully (`--apply --type review-ack` / `--type
+  copilot-unavailable`); `<!-- idd-local-validation-evidence:`
+  (also grouped by embedded HEAD SHA mismatch, mirroring AW3-H) is
+  hidden by `local-validation-evidence.mjs` itself right after its own
+  `--record --apply` POST succeeds -- see
+  [this helper's doc](idd-helper-scripts.md#local-validation-evidence-helper).
+  All three scan the target's other comments for same-family comments
+  the new one supersedes and reuse
+  `scripts/minimize-superseded-markers.mjs`'s `runMinimize` for the
+  actual mutation -- best-effort: any failure there (a permission
+  error, an unreadable comment list) is swallowed and never blocks or
+  retries the marker post that already succeeded (preventive; no
+  observed incident yet — #2788). This mechanism lives
+  inside the built `.mjs` helpers, so it only runs where a helper
+  runtime is configured (`vendored-node`, `package-manager`, or
+  `ephemeral-npx`); under `instructions-only` (or wherever the helper
+  is otherwise unavailable), an agent posts these markers' plain-text
+  bodies by hand instead, and no equivalent manual minimize step
+  exists yet for them the way the agent-followed instruction step
+  above already gives the claim chain / review-watermark-baseline /
+  advisory-wait families -- these three markers accumulate like an
+  `f4-only` family until a future track adds one.
+
+A family classified `f4-only` has
+no such wiring yet and follows the default F4-only timing above until a
+future track adds it -- concretely, the post-merge F4 batch means
+`audit-pr-cleanup.mts`'s generic marker-prefix match
+(`operationalMarkerPrefix`) against comments on the merged PR itself,
+which recognizes the full `OPERATIONAL_MARKERS` set directly. The
+running code never parses this document, so the vendored helper's own
+dry run never depends on the Candidate Rules section below staying in
+sync with `MARKER_HIDE_POLICY`. Only the manual GraphQL fallback, which
+has no code behind it and uses that list as its literal operating
+procedure, was narrowed when that list fell behind (issue #2778
+reconciled the two and added a mechanical drift-guard test,
+`tests/marker-helpers-facade.test.mts`, so a future drift fails closed
+instead of recurring silently). A third `MARKER_HIDE_POLICY` kind,
+`excluded`, covers markers deliberately kept out of both groupings
+(each for the reason on its own
+entry in `MARKER_HIDE_POLICY`). Two of those are permanently outside F4's
+reach for different reasons: `<!-- forced-handoff:` carries its own
+explicit F4 exemption (`audit-pr-cleanup.mts` hardcodes a skip for that
+prefix regardless of merge state), and `<!-- activation-nonce:` is a
+related marker in the same claim exchange as the wired claim chain above
+but is posted to the claim **issue**, not the PR -- F4's PR-scoped
+`audit-pr-cleanup.mts` structurally never sees it, so it has no F4
+cleanup path even though it is not `wired` either. The remaining
+`excluded` entries carry no such exemption; whether F4's generic rule
+actually reaches each of them depends on where that family is posted.
+
+Do not minimize comments during active E or F gates for any other
+reason. In particular, do not minimize comments that still determine
+review currency, advisory wait state, unresolved-thread state,
+unreplied-comment state, hold state, or a pending maintainer decision --
+including a `wired` family's own comment outside the narrow
+POST+verify-triggered exception above.
 
 ### Server-side fallback (optional)
 
@@ -175,15 +257,78 @@ canonical, mandatory contract. The server-side workflow is a
 backstop, not a replacement: same helper, same candidate rules,
 same evidence comment shape, non-blocking on errors. Double-posting is
 prevented by the cleanup-evidence record itself, not by Actions
-concurrency: the workflow skips when a trusted-author
-`<!-- idd-cleanup-evidence:` comment already exists (posted by
-`github-actions[bot]` or a configured `trustedMarkerActors` login — an
-untrusted commenter's marker-prefixed comment never counts), and the
-agent F4 step skips its own post under the same trusted-author rule when
-a prior success record is already present — including the one the
-workflow posted. The workflow's PR-keyed `concurrency` group only
-serializes workflow runs against each other; it does not gate the
-agent's local F4.
+concurrency: the workflow skips when the latest trusted-author
+`<!-- idd-cleanup-evidence:` comment already records a successful
+outcome (`applied` or `clean`; posted by `github-actions[bot]` or a
+configured `trustedMarkerActors` login — an untrusted commenter's
+marker-prefixed comment never counts), and the agent F4 step skips its
+own post under the same success-record rule — including a success
+record the workflow itself posted. A trusted comment recording any
+other status (`failed`, `incomplete`, `permission-blocked`,
+`rescan-failed`) does not suppress either side, so a
+`workflow_dispatch` rerun after a `rescan-failed` post still posts
+fresh evidence (preventive; no observed incident yet — #2043). The
+workflow's PR-keyed `concurrency` group only serializes workflow runs
+against each other; it does not gate the agent's local F4.
+
+**In-flight cleanup-run wait (#2846).** Before the agent's F4 step
+decides whether to post its own evidence comment (the
+duplicate-success-record rule above — only the agent can run this
+wait; the workflow itself cannot block on its own run without
+deadlocking), also check whether this PR's own
+`post-merge-cleanup.yml` check run is still in flight — narrowing the
+residual race the
+marker-comment check alone cannot fully close: a run that has started
+but not yet posted its comment leaves no marker for that rule to find,
+so without this earlier wait both sides can still post within the same
+few-second window after merge (observed 2026-09-09 on
+`kurone-kito/dotfiles#396`: a live CodeRabbit review caught exactly
+this duplicate `idd-cleanup-evidence` comment on an adopter's PR). This
+wait only narrows the window, it does not close it: GitHub registers
+the check run asynchronously after the triggering webhook fires, so a
+run that has not yet been created has no entry here to find yet; that
+residual sliver is an accepted fail-open gap, not something this check
+claims to close.
+
+`gh pr checks` surfaces this `pull_request_target`-triggered run as a
+normal PR check even though it fires after merge — verified on PR
+`#2855`, 2026-09-10. Filter on whatever `name:` the adopter's own copy
+of the workflow actually declares; this repository's dogfooded copy
+and the template both currently say `Post-merge cleanup`.
+
+```sh
+gh pr checks <pr-number> --json workflow,bucket --jq \
+  'map(select(.workflow == "Post-merge cleanup")) | any(.bucket == "pending")'
+```
+
+- **A nonzero exit alone is not failure.** `gh pr checks` exits `8`
+  whenever _any_ check on the PR is still pending (its own documented
+  behavior — `gh pr checks --help`), even when this query's own
+  stdout is valid; a script that aborts under `set -e` on that exit
+  code, or that treats any nonzero status as "lookup failed", falls
+  through and skips the wait below entirely, leaving the race this
+  check exists to narrow. Capture and parse stdout regardless of exit
+  status; only _no parseable output at all_ counts as a lookup
+  failure.
+- **`false`, or no parseable output at all** (old `gh`, no network, a
+  GitHub Enterprise Server version without this data, or no run found
+  for this PR): not in flight. Continue to the duplicate-success-record
+  skip rule unchanged — it reads whatever that run may have posted (if
+  any) and adjudicates on the marker's own recorded status, regardless
+  of how the run itself concluded.
+- **`true`**: the run is in flight. Poll the same query at a reasonable
+  interval until it returns `false`, bounded by
+  `ciWait.generationTimeout` (default `PT10M`) measured from this
+  first `true` observation. A single bound suffices here — unlike the
+  longer-running checks `idd-ci.instructions.md`'s own polling
+  algorithm bounds with the queued/running split, this workflow's job
+  completes in roughly 15 seconds, so distinguishing a merely queued
+  run from an actually running one buys nothing at that scale. Past
+  that bound with the run still in flight, treat it the same as
+  "not in flight" and continue to the duplicate-success-record skip
+  rule unchanged — a resulting duplicate comment is this check's
+  accepted fail-open default, the same one the "not in flight" case
+  above already accepts.
 
 ## GitHub mechanism
 
@@ -269,12 +414,42 @@ IDD operational marker comments may be minimized as `OUTDATED` only when
 the PR is merged and the marker is no longer needed for resume, advisory
 wait, or review-currency checks. Candidate prefixes are:
 
+- `<!-- claimed-by:`
+- `<!-- unclaimed-by:`
 - `<!-- review-watermark:`
 - `<!-- review-baseline:`
 - `advisory-wait:`
 - `advisory-wait-recovery:`
 - `<!-- advisory-wait:`
 - `advisory-reroll:`
+- `review-ack:`
+- `copilot-unavailable:`
+- `<!-- idd-local-validation-evidence:`
+
+This list tracks every `OPERATIONAL_MARKERS` prefix
+(`src/scripts/marker-helpers.mts`) classified `wired` or `f4-only` in
+`MARKER_HIDE_POLICY` -- i.e. everything except the `excluded` prefixes
+below (issue #2778). **Excluded from this list** -- these are also
+`OPERATIONAL_MARKERS` prefixes, but deliberately never candidates for
+this manual `OUTDATED` fallback (full reasoning in each entry's own
+`MARKER_HIDE_POLICY` record; see also "## Timing" above):
+
+- `<!-- activation-nonce:` -- issue-scoped (posted to the claim issue,
+  not the PR) and has no hide-at-post-time wiring yet (caught by
+  Copilot review on PR #2759).
+- `<!-- forced-handoff:` -- permanent maintainer-authority audit record
+  of a claim transfer; never minimize it.
+- `<!-- idd-external-check-waiver:` -- maintainer-authority marker; a
+  correct grouping key needs the embedded `check:` selector, and hiding
+  a still-relevant waiver for a different check would hide live
+  authorization (roadmap #2751 Background).
+- `<!-- idd-provider-outage-declaration:` and
+  `<!-- idd-provider-outage-advanced:` -- issue-scoped, cross-PR
+  declare/advance protocol with no clean single-PR grouping key
+  (roadmap #2751 Background).
+- `<!-- idd-provider-outage-park:` -- needs claim-lineage-aware
+  supersession the marker carries no reference for (roadmap #2751
+  Background).
 
 Always skip candidates when any of these are true:
 
@@ -376,9 +551,9 @@ corresponding path:
 | `permission-blocked` | Post a cleanup-permission-blocked comment, then proceed to F4 |
 |                      | step 3.                                                       |
 
-After apply, if `status` is `failed` or `incomplete`, post a
-cleanup-failure comment. A cleanup failure after a successful F3 merge
-does not re-block the merge; it is an explicit record only.
+After apply, if `status` is `failed`, `incomplete`, or `rescan-failed`,
+post a cleanup-failure comment. A cleanup failure after a successful F3
+merge does not re-block the merge; it is an explicit record only.
 
 ### Cleanup evidence comment
 
@@ -386,38 +561,61 @@ Post this comment to the PR after a successful or partial apply. The
 HTML comment token on the first line acts as a stable machine-readable
 marker so a resuming agent — or a concurrent `post-merge-cleanup`
 workflow run — can detect that evidence was already posted. The
-**agent-side** rule keys on the prior **success** record: **skip the
-post when a `<!-- idd-cleanup-evidence:` comment recording a successful
-outcome (`applied` / `clean`) already exists on the PR**, so the agent
-never stacks a duplicate success record — even when this run's own apply
-returned `applied` for residual markers a concurrent `post-merge-cleanup`
-workflow run minimized first; still post when no prior success record
-exists, or to correct an existing `failed` / `incomplete` /
-`permission-blocked` record. The `post-merge-cleanup` workflow instead
-uses a simpler presence-only guard (it skips on any existing marker),
-which suffices for its single-shot post-merge run:
+[In-flight cleanup-run wait](#server-side-fallback-optional) above
+runs first, delaying only until any in-flight `post-merge-cleanup.yml`
+run finishes (or the wait bound elapses) — this marker-based rule is
+what actually adjudicates ownership once that run, if any, has had its
+chance to post. Both
+the **agent-side** F4 step and the `post-merge-cleanup` workflow then
+key on the prior **success** record: **skip the post when the latest
+trusted
+`<!-- idd-cleanup-evidence:` comment records a successful outcome
+(`applied` / `clean`)**, so neither side stacks a duplicate success
+record — even when this run's own apply returned `applied` for residual
+markers the other side already minimized first; still post when no
+prior success record exists, or to correct an existing `failed` /
+`incomplete` / `permission-blocked` / `rescan-failed` record — a
+`rescan-failed` record in particular invites a retry, so a later
+`workflow_dispatch` rerun (or agent F4 re-run) must post fresh evidence
+for its own outcome rather than leave stale non-success evidence as the
+PR's only record (preventive; no observed incident yet — #2043):
 
 ```markdown
-<!-- idd-cleanup-evidence: {status} applied:{N} failed:{N} skipped:{N} viewer-cannot-minimize:{N} -->
+<!-- idd-cleanup-evidence: {status} applied:{N} failed:{N} skipped:{N} viewer-cannot-minimize:{N} retry-attempts:{N} retry-bound-exhausted:{true|false} -->
 
 **F4 Cleanup Evidence**
 
-| Field              | Value                                  |
-| ------------------ | -------------------------------------- |
-| Status             | applied / failed / incomplete          |
-| Applied            | N                                      |
-| Failed             | N                                      |
-| Skipped            | N                                      |
-| Permission-blocked | N                                      |
-| Notes              | reason for any failed or skipped items |
+| Field                            | Value                                                 |
+| -------------------------------- | ----------------------------------------------------- |
+| Status                           | applied / clean / failed / incomplete / rescan-failed |
+| Applied                          | N                                                     |
+| Failed                           | N                                                     |
+| Skipped                          | N                                                     |
+| Permission-blocked               | N                                                     |
+| Retry attempts (bound-exhausted) | N (true / false)                                      |
+| Notes                            | reason for any failed or skipped items                |
 ```
+
+`retry-attempts` / `retry-bound-exhausted` mirror
+`audit-pr-cleanup.mjs --apply`'s own `retryAttempts` /
+`retryBoundExhausted` JSON fields (its internal whole-pass retry, see
+issue 2011): a `true` bound-exhausted value with an otherwise
+`applied`/`clean` status is informational, not a cleanup failure — a
+fresh rescan still found candidates after the bound, not that
+anything went wrong. A `rescan-failed` status (below) always takes the
+cleanup-failure path regardless of `retry-bound-exhausted`, since the
+confirming rescan itself never completed.
 
 ### Cleanup-failure comment
 
-Post this comment when apply `status` is `failed` or `incomplete`. If
-`viewer-cannot-minimize > 0` is also non-zero, include the blocked count
-in the same comment rather than posting a separate permission-blocked
-comment:
+Post this comment when apply `status` is `failed`, `incomplete`, or
+`rescan-failed`. `rescan-failed` means the confirming rescan after a
+mutation errored (a transient GraphQL/`gh` failure) — already-applied
+work is preserved in the report, but convergence was never confirmed;
+note that distinction and suggest a re-run rather than describing it as
+a per-candidate failure. If `viewer-cannot-minimize > 0` is also
+non-zero, include the blocked count in the same comment rather than
+posting a separate permission-blocked comment:
 
 ```markdown
 <!-- idd-cleanup-evidence: {status} applied:{N} failed:{N} skipped:{N} viewer-cannot-minimize:{N} -->
@@ -426,7 +624,7 @@ comment:
 
 Cleanup candidates were detected but not all could be applied.
 
-- Status: failed / incomplete
+- Status: failed / incomplete / rescan-failed
 - Failed: N candidates (reason: ...)
 - Unapplied: N candidates
 - Permission-blocked: N candidates (if any)
