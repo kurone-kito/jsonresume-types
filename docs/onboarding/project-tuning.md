@@ -33,11 +33,13 @@ per-file examples.
 
 ## Non-default profile artifacts
 
-`idd-onboard --record-policy` records the chosen PR review policy
-profile and review-thread resolution policy in
-`.github/idd/config.json`, but it does not apply a non-default
-profile's artifact or the phase-file customizations that profile
-requires. When Step 1B's confirmed profile is not the distributed
+`idd-onboard --record-policy --apply` records the chosen PR review
+policy profile and review-thread resolution policy in
+`.github/idd/config.json` — the default invocation without `--apply`
+only prints the patch (a dry run) and writes nothing — but it does
+not apply a non-default profile's artifact or the phase-file
+customizations that profile requires. When Step 1B's confirmed
+profile is not the distributed
 default (`copilot-advisory` review policy, `fast-agent-resolve`
 thread resolution), read
 [IDD PR review policy profiles](../idd-review-policy-profiles.md),
@@ -47,8 +49,9 @@ phase-file edits by hand before running unattended PR review loops.
 ## Helper-runtime profile wiring
 
 `--substitute`/`--record-policy` set `helperRuntime.profile` in
-`.github/idd/config.json`, but neither runs the setup a non-default
-profile needs. `--import --profile vendored-node` alone copies the
+`.github/idd/config.json` (`--record-policy` persists this only with
+`--apply`; its default is a dry run), but neither runs the setup a
+non-default profile needs. `--import --profile vendored-node` alone copies the
 `vendored-node` helper bundle; for either `vendored-node` or
 `package-manager`, still run
 [`idd-helper-bundle-manifest`](../idd-helper-scripts.md#profile-wiring-surface)
