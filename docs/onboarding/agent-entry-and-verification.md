@@ -109,16 +109,20 @@ Before starting IDD work, open
 phase file manually when the current step changes.
 ```
 
-### AGENTS.md (for Codex CLI and OpenCode)
+### AGENTS.md (for Codex CLI, OpenCode, and Grok Build)
 
-`AGENTS.md` is the shared agents.md-standard entry file for both Codex
-CLI and OpenCode: each auto-loads `AGENTS.md` from the repository root
-natively, so this single file covers both runtimes and OpenCode needs
-no dedicated root file of its own.
+`AGENTS.md` is the shared agents.md-standard entry file for Codex CLI,
+OpenCode, and Grok Build: each auto-loads `AGENTS.md` from the
+repository root natively, so this single file covers those runtimes
+and neither OpenCode nor Grok Build needs a dedicated root file of its
+own. Do not create `GROK.md`. `idd-doctor` still checks only
+`AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` — do not add a `GROK.md`
+check.
 
 If `AGENTS.md` already exists, add the shared IDD workflow section and
-keep the wording explicit that Codex CLI and OpenCode agents should
-manually open `.github/instructions/idd-overview-core.instructions.md`
+keep the wording explicit that Codex CLI, OpenCode, and Grok Build
+agents should manually open
+`.github/instructions/idd-overview-core.instructions.md`
 and the routed phase file before starting IDD work.
 
 If `AGENTS.md` does not exist, create a minimal file such as below.
@@ -188,6 +192,19 @@ workflow stub above to every session; the steps below are an
   that login to `trustedMarkerActors` (and the advisory-bot lists if
   it also reviews) in `.github/idd/config.json` — a config-values edit
   only; `schemas/policy.schema.json` stays agent-agnostic.
+
+#### Grok Build: no extra root file
+
+Grok Build auto-loads `AGENTS.md` (and `CLAUDE.md` when present). Do
+not create `GROK.md`. It discovers the optional `issue-authoring`
+companion under `.claude/skills/` the same way OpenCode does — do not
+add a `.grok/skills/` install root.
+
+If a target repository runs Grok Build as an autonomous worker under
+its own GitHub identity (not just an interactive assistant), add that
+login to `trustedMarkerActors` (and the advisory-bot lists if it also
+reviews) in `.github/idd/config.json` — a config-values edit only;
+`schemas/policy.schema.json` stays agent-agnostic.
 
 ### Issue-authoring companion verification
 
@@ -339,7 +356,7 @@ checks, confirm the detailed items below.
       the operator explicitly opted out of creating it.
 - [ ] `AGENTS.md` exists and references `docs/idd-workflow.md`, unless
       the operator explicitly opted out of creating it; this single
-      file covers both Codex CLI and OpenCode.
+      file covers Codex CLI, OpenCode, and Grok Build.
 - [ ] `GEMINI.md` exists and references `docs/idd-workflow.md`, unless
       the operator explicitly opted out of creating it.
 - [ ] Among the entry files the operator did not opt out of creating,

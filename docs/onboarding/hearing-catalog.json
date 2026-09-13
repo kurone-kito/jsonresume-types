@@ -1,0 +1,338 @@
+{
+  "version": "1.0.0",
+  "items": [
+    {
+      "id": "gh-cli",
+      "step": "0",
+      "kind": "check",
+      "prompt": "Is the gh CLI installed and authenticated to this repository's git-remote host?",
+      "explanation": "IDD depends on gh for claim markers, PRs, review disposition, and merge. Scope gh auth status to the host derived from git remote get-url origin; a bare auth status check is not sufficient."
+    },
+    {
+      "id": "git-remote-host",
+      "step": "0",
+      "kind": "check",
+      "prompt": "What host does git remote get-url origin resolve to?",
+      "explanation": "Derive the gh --hostname value from the origin URL. github.com URLs yield github.com. This host scopes the gh CLI check and later GitHub API calls."
+    },
+    {
+      "id": "execution-environment",
+      "step": "0",
+      "kind": "check",
+      "prompt": "Does this operator environment provide a POSIX shell and the Unix utilities IDD fenced blocks assume?",
+      "explanation": "Distributed workflow blocks assume sh/bash plus grep, sed, mkdir, dirname, tr, head, sort, and curl. On Windows use Git Bash or WSL. The instructions-only advisory-wait fallback also needs jq on PATH."
+    },
+    {
+      "id": "REPO_NAME",
+      "step": "1A",
+      "kind": "placeholder",
+      "prompt": "What is the repository short name used in worktree examples?",
+      "explanation": "Read the short name from the git remote or GitHub API. The remote name is the most reliable source.",
+      "mapsToPlaceholder": "REPO_NAME"
+    },
+    {
+      "id": "PROJECT_MARKER_PREFIX",
+      "step": "1A",
+      "kind": "placeholder",
+      "prompt": "What hidden issue-body marker prefix should this repository use?",
+      "explanation": "Start from the repository name, lowercase it, and normalize into a short hyphenated prefix matching ^[a-z][a-z0-9-]{1,31}$.",
+      "derivationHook": "deriveMarkerPrefix",
+      "mapsToPlaceholder": "PROJECT_MARKER_PREFIX"
+    },
+    {
+      "id": "TRUSTED_MARKER_ACTOR",
+      "step": "1A",
+      "kind": "placeholder",
+      "prompt": "Which single GitHub login may post trusted IDD markers?",
+      "explanation": "This placeholder fills one quoted JSON array entry. Derive the candidate from people or bots allowed to post trusted claim, release, watermark, baseline, and advisory markers. Extra logins are added manually after the first replacement.",
+      "mapsToPlaceholder": "TRUSTED_MARKER_ACTOR"
+    },
+    {
+      "id": "FIX_VALIDATE_COMMANDS",
+      "step": "1A",
+      "kind": "placeholder",
+      "prompt": "What auto-fix plus validate command row should IDD run?",
+      "explanation": "Command placeholders may be set to true when a step does not apply. Prefer an existing Project commands table row over a freshly derived heuristic when one is already recorded.",
+      "derivationHook": "deriveValidateCommands",
+      "mapsToPlaceholder": "FIX_VALIDATE_COMMANDS"
+    },
+    {
+      "id": "PRE_PUSH_VALIDATE_COMMANDS",
+      "step": "1A",
+      "kind": "placeholder",
+      "prompt": "What non-mutating verify command row should IDD run before push?",
+      "explanation": "This row must not auto-fix. Prefer an existing Project commands table row over a freshly derived heuristic when one is already recorded.",
+      "derivationHook": "deriveValidateCommands",
+      "mapsToPlaceholder": "PRE_PUSH_VALIDATE_COMMANDS"
+    },
+    {
+      "id": "POST_FIX_VALIDATE_COMMANDS",
+      "step": "1A",
+      "kind": "placeholder",
+      "prompt": "What post-fix validate command row should IDD run after applying fixes?",
+      "explanation": "Prefer an existing Project commands table row over a freshly derived heuristic when one is already recorded.",
+      "derivationHook": "deriveValidateCommands",
+      "mapsToPlaceholder": "POST_FIX_VALIDATE_COMMANDS"
+    },
+    {
+      "id": "INSTALL_DEPS_COMMAND",
+      "step": "1A",
+      "kind": "placeholder",
+      "prompt": "What dependency install command should IDD run, or true when none is needed?",
+      "explanation": "Look for declared packageManager metadata, a single supported lockfile, or other documented install tooling. Keep the command safe to rerun across retries and recreated worktrees.",
+      "derivationHook": "deriveInstallDepsCommand",
+      "mapsToPlaceholder": "INSTALL_DEPS_COMMAND"
+    },
+    {
+      "id": "merge-policy",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Which session may execute the F3 merge?",
+      "explanation": "fully_autonomous_merge lets one trusted agent session merge after the normal gates. human_merge stops workers at the handoff gate for a human maintainer. separate_merge_agent reserves merge for a separately authorized actor. Propose human_merge unless the operator opts in to fully_autonomous_merge; recommend keeping human_merge for public/OSS or weak-model unattended loops.",
+      "options": [
+        {
+          "value": "human_merge",
+          "isDefault": true
+        },
+        {
+          "value": "fully_autonomous_merge"
+        },
+        {
+          "value": "separate_merge_agent"
+        }
+      ],
+      "mapsToConfig": "/mergePolicy"
+    },
+    {
+      "id": "review-policy",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Which PR review-authority profile should this repository use?",
+      "explanation": "Keep the distributed GitHub Copilot advisory profile unless the operator chooses no-advisory, human-required, or another documented profile. Non-default profiles need matching phase-file updates from docs/idd-review-policy-profiles.md.",
+      "options": [
+        {
+          "value": "copilot-advisory",
+          "isDefault": true
+        },
+        {
+          "value": "no-advisory"
+        },
+        {
+          "value": "human-required"
+        },
+        {
+          "value": "external-bot"
+        }
+      ],
+      "mapsToConfig": "/reviewPolicy"
+    },
+    {
+      "id": "thread-resolution-policy",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Which review threads may an agent resolve on its own?",
+      "explanation": "fast-agent-resolve is the distributed default. hybrid-reviewer-ack and strict-reviewer-resolve require matching updates to the review snapshot, triage, review-fix, pre-merge, and merge phase files. Branch-protection conversation-resolution rules always override this policy.",
+      "options": [
+        {
+          "value": "fast-agent-resolve",
+          "isDefault": true
+        },
+        {
+          "value": "hybrid-reviewer-ack"
+        },
+        {
+          "value": "strict-reviewer-resolve"
+        }
+      ],
+      "mapsToConfig": "/threadResolutionPolicy"
+    },
+    {
+      "id": "critique-loop-profile",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Keep the distributed critique-loop defaults, or record a local override?",
+      "explanation": "Confirm whether the repository uses the shipped guardrails from docs/policy-constants.md or intentionally customizes critique-loop behavior before unattended execution. This decision is recorded in human-readable policy notes, not a required config field.",
+      "options": [
+        {
+          "value": "distributed-defaults",
+          "isDefault": true
+        },
+        {
+          "value": "repository-override"
+        }
+      ]
+    },
+    {
+      "id": "credential-scope",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "What is the narrowest credential profile that can complete the intended IDD phases?",
+      "explanation": "Review docs/permissions.md before granting unattended or merge-capable credentials. Record the selected boundary next to the merge policy so later sessions can tell whether worker credentials and merge-capable credentials differ. This is a docs-only freeform decision, not a merge-policy enum."
+    },
+    {
+      "id": "claim-timing",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Keep the distributed claim-timing defaults (stale age 24 h, heartbeat 12 h)?",
+      "explanation": "The onboarding entry point should confirm whether the repository keeps claim-stale-age 24 h and claim-heartbeat-interval 12 h from docs/policy-constants.md before unattended workers begin.",
+      "options": [
+        {
+          "value": "distributed-defaults",
+          "isDefault": true
+        },
+        {
+          "value": "repository-override"
+        }
+      ],
+      "mapsToConfig": "/claimTiming"
+    },
+    {
+      "id": "ci-wait-policy",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Keep the distributed CI wait defaults, or record a local override?",
+      "explanation": "Distributed defaults are runningTimeout PT30M, generationTimeout PT10M, and rerunPolicy rerun-once. Customizing any value must keep .github/idd/config.json aligned with the CI, review-fix, and pre-merge instruction files.",
+      "options": [
+        {
+          "value": "rerun-once",
+          "isDefault": true
+        },
+        {
+          "value": "hold"
+        }
+      ],
+      "mapsToConfig": "/ciWait/rerunPolicy"
+    },
+    {
+      "id": "issue-author-approval-gate",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Keep the secure-by-default issue-author approval gate, or record a config opt-out?",
+      "explanation": "enabled-by-default requires a self-authorizing issue author or a fresh maintainer approval before claim. Opting out sets skipIssueAuthorApprovalGate true in .github/idd/config.json and the same decision in human-readable policy notes.",
+      "options": [
+        {
+          "value": "enabled-by-default",
+          "isDefault": true
+        },
+        {
+          "value": "skip-gate"
+        }
+      ],
+      "mapsToConfig": "/skipIssueAuthorApprovalGate"
+    },
+    {
+      "id": "maintainer-approval-actor-policy",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Who may approve issue start when the issue-author approval gate stays enabled?",
+      "explanation": "owners-and-maintainers-only is the recommended default. all-write-permission-actors also admits Write collaborators. Record the same enum in maintainerApprovalActorPolicy when .github/idd/config.json is present.",
+      "options": [
+        {
+          "value": "owners-and-maintainers-only",
+          "isDefault": true
+        },
+        {
+          "value": "all-write-permission-actors"
+        }
+      ],
+      "mapsToConfig": "/maintainerApprovalActorPolicy"
+    },
+    {
+      "id": "issue-authoring-companion",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Install the optional issue-authoring skill into one native destination?",
+      "explanation": "installed copies skills/issue-authoring/ into one selected native skill directory. not-installed continues without the companion. Do not add the same skill ID to multiple runtime roots by default. This is a docs-only decision.",
+      "options": [
+        {
+          "value": "not-installed",
+          "isDefault": true
+        },
+        {
+          "value": "installed"
+        }
+      ]
+    },
+    {
+      "id": "helper-runtime-profile",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Which helper runtime profile should this repository record?",
+      "explanation": "Auto-propose package-manager, vendored-node, or ephemeral-npx from repository evidence, but require explicit confirmation before recording anything other than instructions-only. Repositories without Node.js stay on instructions-only.",
+      "options": [
+        {
+          "value": "instructions-only",
+          "isDefault": true
+        },
+        {
+          "value": "package-manager"
+        },
+        {
+          "value": "vendored-node"
+        },
+        {
+          "value": "ephemeral-npx"
+        }
+      ],
+      "mapsToConfig": "/helperRuntime/profile"
+    },
+    {
+      "id": "idd-label-names",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Keep the three distributed IDD label names, or map them onto a local taxonomy?",
+      "explanation": "Distributed defaults are roadmap, status:blocked-by-human, and status:needs-decision. If a semantic auto-labeler can infer those names, adopt the reserved-label guard recipe before relying on unattended discovery. The auto-labeler follow-up is nested under this item, not a separate catalog id.",
+      "options": [
+        {
+          "value": "distributed-defaults",
+          "isDefault": true
+        },
+        {
+          "value": "custom-taxonomy"
+        }
+      ],
+      "mapsToConfig": "/labels"
+    },
+    {
+      "id": "up-to-date-head-ruleset",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Leave GitHub's require-up-to-date-head setting disabled?",
+      "explanation": "Recommended: disabled. Enabling it can force a main-sync merge on every merely-BEHIND PR and multiply Copilot advisory rounds. IDD's conflict-triggered main-sync and F1/F2 freshness checks still catch correctness-critical drift. This is a docs-only GitHub ruleset decision.",
+      "options": [
+        {
+          "value": "disabled",
+          "isDefault": true
+        },
+        {
+          "value": "enabled"
+        }
+      ]
+    },
+    {
+      "id": "bootstrap-execution-mode",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Run the initial IDD import as a direct commit, or through a reviewable PR?",
+      "explanation": "direct-import is the distributed default. issue-mediated routes the same import through issue, branch, PR, and merge using the already-confirmed placeholder values and Step 1B decisions. Propose direct-import unless the operator asks for a reviewable first mutation. This is a docs-only decision.",
+      "options": [
+        {
+          "value": "direct-import",
+          "isDefault": true
+        },
+        {
+          "value": "issue-mediated"
+        }
+      ]
+    },
+    {
+      "id": "development-branch",
+      "step": "1B",
+      "kind": "policy",
+      "prompt": "Which long-lived branch should IDD feature pull requests target?",
+      "explanation": "Distinct from the repository's trusted GitHub default branch used for workflow/configuration checkout. Propose the repository's live GitHub default branch as the candidate; require explicit confirmation or correction, then verify the selected branch exists on the configured remote before recording it. Release, hotfix, and development-to-default promotion flows are outside this decision's support boundary.",
+      "derivationHook": "deriveDevelopmentBranchCandidate",
+      "mapsToConfig": "/developmentBranch"
+    }
+  ]
+}

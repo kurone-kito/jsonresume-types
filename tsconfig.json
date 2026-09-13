@@ -1,5 +1,6 @@
 {
   "compilerOptions": { "noEmit": true },
   "extends": "@kurone-kito/typescript-config",
-  "include": ["index.d.ts", "./**/*.mjs", "./**/*.mts"]
+  "include": ["index.d.ts", "./**/*.mjs", "./**/*.mts"],
+  "exclude": ["node_modules", "scripts"]
 }
