@@ -158,9 +158,12 @@ branch protection -- the `main` ruleset (id `20745987`) pins the check via
 and `bypass_actors: []` (the `enforce_admins: true` equivalent -- the check
 applies to admin merges too, including a trusted merge-capable session's
 own). The same ruleset's `required_status_checks` array also lists three
-build-matrix jobs (`The build process (22.x|24.x|26.x, ubuntu-latest,
-bash)`, same `integration_id: 15368`) alongside `idd-advisory-convergence`
--- expected under the `matches` inclusion-check semantics documented below,
+build-matrix jobs, one exact context per Node.js version --
+`The build process (22.x, ubuntu-latest, bash)`,
+`The build process (24.x, ubuntu-latest, bash)`, and
+`The build process (26.x, ubuntu-latest, bash)` -- same
+`integration_id: 15368`, alongside `idd-advisory-convergence`. This is
+expected under the `matches` inclusion-check semantics documented below,
 but recorded here so a future reader doesn't assume `idd-advisory-convergence`
 is the *only* required check on this ruleset. Verify the pinned check and
 its strict-policy flag with:
@@ -298,9 +301,10 @@ resolved findings -- see each bullet's own current-run note.
 - **`release-tag drift`** -- out of scope for the IDD import. Cutting a new
   release is roadmap #46's concern (`Roadmap: restore the release pipeline
   and the package's quality gates`), not #38's. This document does not track
-  release cadence. This check compares `HEAD` against the latest git tag
-  only (commit count and tag-commit age), never `package.json`'s own
-  `"version"` field -- it warns past 100 commits or 45 days since the tag.
+  release cadence. This check compares `HEAD` against the latest
+  **reachable** git tag only (`git describe --tags --abbrev=0`; commit
+  count and tag-commit age), never `package.json`'s own `"version"`
+  field -- it warns past 100 commits or 45 days since the tag.
   At v0.11.0 re-import verification time (#110), `HEAD` was 63 commits and
   about 32 days past the latest tag (`v0.6.0`), both under threshold, so no
   drift was observed -- also a transient zero-count, not a change to scope.
@@ -366,9 +370,13 @@ pass does not need to re-investigate the same ground:
 
 ## v0.11.0 Re-import Notes
 
-Recorded during the `idd-skill` v0.11.0 re-import (roadmap #102, tracks #103
-through #109 and #122, closed out by this reconciliation issue #110) so a
-future pass does not need to re-investigate the same ground:
+Recorded during the `idd-skill` v0.11.0 re-import -- roadmap #102, tracks
+issue #103 through issue #109 inclusive, closed out by this
+reconciliation issue #110 whose own acceptance scope is this policy
+document only. The independent helper-wiring track #122 is already
+applied to the assembled state below, but is neither blocked by nor
+blocking #110. Recorded so a future pass does not need to
+re-investigate the same ground:
 
 - **Peeled release pin**: `package.json` pins `@kurone-kito/idd-skill` to
   `github:kurone-kito/idd-skill#1f90787ebf4021673ce6e5eb69741df331fd2037`
@@ -416,15 +424,16 @@ future pass does not need to re-investigate the same ground:
   adopted for any of the three -- `.github/idd/config.json` sets none of
   `providerHealth.*`, `localValidationEvidence.*`, or `providerOutage.*`,
   so all three continue to operate on the distributed defaults (see
-  `docs/policy-constants.md`'s "Provider Outage Declaration Defaults" and
-  "Local Validation Evidence Defaults" tables).
+  `docs/policy-constants.md`'s "Provider Health Defaults", "Provider
+  Outage Declaration Defaults", and "Local Validation Evidence Defaults"
+  tables).
 - **Live ruleset evidence**: see the corrected "Advisory-Convergence
   Required Check" section above (`strict_required_status_checks_policy:
   false`, `bypass_actors: []`, `current_user_can_bypass: "never"`) -- not
   repeated here.
-- **`idd-doctor --strict` reproduction** (2026-09-14T16:08Z, from the
-  claimed issue's sibling worktree, after #103-#109 were assembled on
-  `main`):
+- **`idd-doctor --strict` reproduction** (2026-09-14T16:08Z, against `main`
+  at commit `7c686dee6ead8520578a80b5c0dc7c48b1dff609`, the merge-base
+  after #103-#109 were assembled and before this issue's own commits):
 
   ```text
   PASS  required instruction and reference files are present
