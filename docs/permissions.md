@@ -582,6 +582,35 @@ allow/deny split, softened as described below.
   needs no abbreviation coverage as a result, only the same
   flag-position residual as the other two.
 
+  **This deny only blocks the explicit flag, and that is a structural
+  limit, not an oversight.** Git's own default for `--recurse-submodules`
+  when the flag is _absent entirely_ is `on-demand`: a **bare**
+  `git fetch origin`, with no submodule-related flag at all, still
+  recurses into a populated submodule whenever the fetched superproject
+  update changes that submodule's recorded commit (found via a second
+  Codex review round on kurone-kito/jsonresume-types#121; verified
+  empirically — advancing the submodule's upstream and recording the
+  new commit in the superproject, then running a completely bare
+  `git fetch origin` against the superclone, invoked the submodule's
+  `ext::` remote with no flag present in the command at all). No Claude
+  Code prefix-matching rule can distinguish this from an ordinary,
+  wanted bare fetch — the command string is identical either way, and
+  the difference is _repository state_ (whether a populated submodule
+  with an untrustworthy remote exists), not anything expressible in the
+  command text. This is the same category of limit as finding 1's
+  `--upload-pack` residual over an unrestricted `ssh://` account: not
+  closable by narrowing the allow rule further, only by the same
+  precondition never holding. It does **not**, and structurally cannot,
+  depend on any of the flags or denies discussed above — the on-demand
+  path fires with none of them present. This repository has no
+  submodules, so it is accepted as low-priority per the same reasoning
+  finding 1 already established, rather than pursued further here. A
+  clone that does add an untrusted-remote submodule can disable the
+  default recursion entirely with `git config fetch.recurseSubmodules
+  false` (verified empirically to suppress it), a git-level
+  configuration choice outside anything this settings file can express
+  or enforce.
+
   `fetch` still downloads objects and updates local remote-tracking
   refs (`refs/remotes/origin/*`); an explicit destination refspec
   (`git fetch origin main:refs/heads/release`) can also create or
