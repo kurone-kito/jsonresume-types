@@ -477,8 +477,8 @@ allow/deny split, softened as described below.
   (kurone-kito/jsonresume-types#115): it changes what program the
   transport the legitimate `origin` remote already resolves to invokes
   when serving the request, not which remote is contacted, so on a
-  repository whose `origin` is itself a local path or an `ext::` URL,
-  `--upload-pack` still runs the given program locally. Whether this is
+  repository whose `origin` is itself a local path, `--upload-pack`
+  still runs the given program locally. Whether this is
   exploitable depends on `origin`'s configured transport, which varies
   by clone, not by repository: this operator's own clone uses a fixed
   `ssh://github.com/…` remote, so the override is sent to GitHub's
@@ -562,6 +562,25 @@ allow/deny split, softened as described below.
   unambiguous abbreviation (`--mult`, `--multi`, …, verified
   empirically) with no broader collateral than `--multiple*` itself
   would have had.
+
+  A third same-shape gap: `--recurse-submodules[=<mode>]` recurses the
+  fetch into every populated submodule using _that submodule's own_
+  configured remote, regardless of how trustworthy the superproject's
+  `origin` is (found via Codex review on
+  kurone-kito/jsonresume-types#121; verified empirically — a submodule
+  whose remote was set to a local-path `ext::` helper had that helper
+  executed by `git fetch origin --recurse-submodules=yes` against an
+  otherwise ordinary superproject `origin`). This repository has no
+  submodules today, so the precondition (a populated submodule with an
+  untrustworthy remote) does not currently hold, but the allow rule
+  does not depend on that fact holding. Unlike `--multiple`,
+  `--recurse-submodules` has **no usable shorter abbreviation** at
+  all: it collides with the sibling `--recurse-submodules-default`
+  option, so any prefix shorter than the full spelling is rejected as
+  ambiguous rather than accepted (confirmed empirically) — the
+  defense-in-depth deny, `Bash(git fetch origin --recurse-submodules*)`,
+  needs no abbreviation coverage as a result, only the same
+  flag-position residual as the other two.
 
   `fetch` still downloads objects and updates local remote-tracking
   refs (`refs/remotes/origin/*`); an explicit destination refspec
@@ -668,9 +687,9 @@ allow/deny split, softened as described below.
 
 `git push --force` / `--force-with-lease` / `-f`, `git reset --hard`,
 `git clean -f`, `git branch -D`, `git fetch origin --upload-pack` /
-`--multiple` / `-m` (kurone-kito/jsonresume-types#115; defense in depth
-for the `git fetch origin` allow, with the residual gaps described
-above), `gh repo delete`, `gh issue delete`, all three `gh api`
+`--multiple` / `-m` / `--recurse-submodules` (kurone-kito/jsonresume-types#115;
+defense in depth for the `git fetch origin` allow, with the residual
+gaps described above), `gh repo delete`, `gh issue delete`, all three `gh api`
 DELETE-verb spellings (`-X DELETE`, `--method DELETE`,
 `--method=DELETE`, kept as defense in depth even though `gh api` itself
 is not allowlisted — see the trap below), and — template counterpart
