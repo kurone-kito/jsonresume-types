@@ -9,12 +9,61 @@
 # branch (issue/* or roadmap-audit/*), because B1 requires that work to
 # live in a sibling worktree. Run git with --no-verify to bypass it
 # intentionally.
+#
+# By default the guard does NOT refuse a commit/push made from the
+# primary worktree while HEAD is on the repository's own base branch
+# (e.g. a session that skips B1 entirely and commits directly on
+# `developmentBranch`) -- only the implementation-branch patterns above
+# are covered. Set the separate opt-in
+# `worktreeGuard.refuseBaseBranchCommits: true` to also refuse that
+# case (#2801). It compares HEAD against the configured
+# `developmentBranch` only -- this pure-POSIX-sh hook has no network
+# access to resolve the live GitHub default branch the way
+# `idd-work.instructions.md`'s B1 does, so an absent `developmentBranch`
+# leaves this stricter check a no-op even when the opt-in is set.
 
 idd_worktree_guard_check() {
   # $1: human-readable action word ("commit" or "push").
   action="$1"
 
-  repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
+  # Single combined `git rev-parse` replaces three separate forked
+  # pipelines (--show-toplevel; `git worktree list --porcelain | sed |
+  # head` to find the primary worktree; --abbrev-ref HEAD), leaving
+  # exactly two external-process forks -- this call and the `tr` below
+  # -- on the common "enabled, not on a guarded branch" path with the
+  # default worktreeGuard.branchPatterns; a configured override adds
+  # two more `tr` forks in the patterns= block further down. A later
+  # change must not silently regress either count.
+  #
+  # This must not gate on exit status: an unborn HEAD makes the
+  # trailing --abbrev-ref HEAD resolution fail (git exits 128), but git
+  # still prints the three preceding values, plus the literal token
+  # "HEAD" it could not resolve, to stdout -- confirmed locally. That
+  # "HEAD" line is indistinguishable from an actual detached HEAD's
+  # --abbrev-ref output, so both already fall through the existing
+  # branch != HEAD check below without special-casing. Whenever the
+  # first value (toplevel) fails outright -- outside a work tree, or
+  # inside a bare .git directory -- git prints nothing at all, so the
+  # loop below leaves repo_root empty and the guard returns 0. The
+  # trailing `|| true` keeps that non-zero exit from tripping a caller
+  # that sources this file under `set -e`, matching the old code's own
+  # `|| return 0` short-circuit.
+  info=$(git rev-parse --show-toplevel --git-dir --git-common-dir --abbrev-ref HEAD 2>/dev/null) || true
+  repo_root='' git_dir='' git_common_dir='' branch=''
+  i=0
+  while IFS= read -r line; do
+    i=$((i + 1))
+    case $i in
+      1) repo_root=$line ;;
+      2) git_dir=$line ;;
+      3) git_common_dir=$line ;;
+      4) branch=$line ;;
+    esac
+  done <<_IDD_WTG_EOF_
+$info
+_IDD_WTG_EOF_
+  [ -n "$repo_root" ] || return 0
+
   config="$repo_root/.github/idd/config.json"
   [ -f "$config" ] || return 0
 
@@ -33,19 +82,45 @@ idd_worktree_guard_check() {
     *) return 0 ;;
   esac
 
-  # Only the primary worktree is guarded. The primary worktree is the
-  # first entry reported by `git worktree list`; sibling worktrees are
-  # exactly where implementation branches are supposed to live.
-  primary=$(git worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | head -n 1)
-  [ -n "$primary" ] || return 0
-  [ "$primary" = "$repo_root" ] || return 0
+  # Only the primary worktree is guarded. In the primary worktree
+  # --git-dir and --git-common-dir refer to the same directory (both
+  # print ".git", or the same absolute path); in a linked worktree
+  # --git-dir points at ".../worktrees/<name>" while --git-common-dir
+  # still points at the shared repository -- confirmed locally. Sibling
+  # worktrees are exactly where implementation branches are supposed to
+  # live, so this is equivalent to the old primary-vs-repo_root check.
+  [ "$git_dir" = "$git_common_dir" ] || return 0
 
   # Only implementation branches are guarded. The globs come from
   # worktreeGuard.branchPatterns, defaulting to issue/* and
-  # roadmap-audit/* when the key is absent. (A detached HEAD reports
-  # "HEAD" and never matches.)
-  branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+  # roadmap-audit/* when the key is absent. (A detached HEAD, or an
+  # unborn HEAD, reports "HEAD" here and never matches.)
   [ -n "$branch" ] && [ "$branch" != "HEAD" ] || return 0
+
+  # Opt-in stricter mode (#2801): also refuse a commit/push while HEAD
+  # is on the configured base branch itself. `developmentBranch` is a
+  # top-level config key, not nested under worktreeGuard, so it is
+  # read from the full compact document, not guard_body.
+  case "$guard_body" in
+    *'"refuseBaseBranchCommits":true'*)
+      development_branch=''
+      case "$compact" in
+        *'"developmentBranch":"'*)
+          dev_raw=${compact#*'"developmentBranch":"'}
+          development_branch=${dev_raw%%\"*}
+          ;;
+      esac
+      if [ -n "$development_branch" ] && [ "$branch" = "$development_branch" ]; then
+        printf 'IDD worktree guard: refusing to %s directly on "%s" from the primary worktree (%s).\n' \
+          "$action" "$branch" "$repo_root" >&2
+        printf 'worktreeGuard.refuseBaseBranchCommits is enabled: implementation work must go\n' >&2
+        printf 'through B1 (create a sibling worktree on an implementation branch) first.\n' >&2
+        printf 'See B1 in .github/instructions/idd-work.instructions.md.\n' >&2
+        printf '(To bypass intentionally, re-run the git command with --no-verify.)\n' >&2
+        return 1
+      fi
+      ;;
+  esac
 
   patterns='issue/* roadmap-audit/*'
   case "$guard_body" in
