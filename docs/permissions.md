@@ -448,18 +448,66 @@ allow/deny split, softened as described below.
   `Bash(git fetch*)`: an unscoped `fetch` allow would let an argument
   supply an arbitrary transport instead of the configured `origin`
   remote — for example the `ext::` transport helper, which runs its
-  argument as a local subprocess (a documented git RCE vector), or a
-  `--upload-pack=<program>` override. Pinning the remote name as a
-  literal prefix closes that: everything after `origin` in a fetched
-  command is refspec/flag context for that already-configured, trusted
-  remote, not a second URL. `fetch` still downloads objects and updates
-  local remote-tracking refs (`refs/remotes/origin/*`), so it is not
-  strictly read-only, but it never touches the working tree, the
-  index, or a local branch pointer. Mutating `git` commands (`commit`,
-  `push`, `worktree add`/`remove`, branch creation) are deliberately
-  **not** in the baseline; they stay behind the normal permission
-  prompt, or a session may layer them into its own
-  `.claude/settings.local.json`.
+  argument as a local subprocess (a documented git RCE vector). Pinning
+  the remote name as a literal prefix closes that vector: everything
+  after `origin` in a fetched command is refspec/flag context for that
+  already-configured, trusted remote, not a second URL. A
+  `--upload-pack=<program>` override is a narrower residual that
+  pinning the remote name does **not** close on its own
+  (kurone-kito/jsonresume-types#115): it changes what program the
+  transport `origin` already resolves to invokes when serving the
+  request, not which remote is contacted, so on a repository whose
+  `origin` is itself a local path or an `ext::` URL, `--upload-pack`
+  still runs the given program locally even with the remote name
+  pinned. This repository's actual `origin` is a fixed
+  `ssh://github.com/…` remote, so the override is sent to GitHub's
+  restricted SSH command handler rather than executed locally — not
+  exploitable here, though that safety is a fact about this
+  repository's configured remote, not a property the allow rule
+  itself guarantees for every adopter of this baseline. A
+  defense-in-depth deny, `Bash(git fetch origin --upload-pack*)`,
+  blocks the direct `git fetch origin --upload-pack=…` form the same
+  way the DELETE-verb denies below do for `gh api`, with two known
+  residual gaps rather than one: the same flag-position gap as those
+  denies (`git fetch origin main --upload-pack=…`, the flag placed
+  after a refspec, is a different literal prefix and is not caught),
+  and, independently, git's own option parser accepts any unambiguous
+  abbreviation of a long option — `git fetch origin --upload-pac=…`
+  (or any shorter unambiguous prefix) reaches the same local-execution
+  behavior without matching this deny's literal `--upload-pack`
+  prefix at all (confirmed empirically: an abbreviated flag proceeds
+  past option parsing to the transport step, while a genuinely unknown
+  flag is rejected immediately with `error: unknown option`). Given
+  the fixed `ssh://` origin already makes both residuals
+  non-exploitable here, they are accepted rather than pursued further.
+  `fetch` still downloads objects and updates local remote-tracking
+  refs (`refs/remotes/origin/*`), so it is not strictly read-only, but
+  it never touches the working tree, the index, or a local branch
+  pointer. Mutating `git` commands (`commit`, `push`, `worktree
+  add`/`remove`, branch creation) are deliberately **not** in the
+  baseline; they stay behind the normal permission prompt, or a
+  session may layer them into its own `.claude/settings.local.json`.
+- **Prefix-matching gaps closed for `diff` / `branch -v`
+  (kurone-kito/jsonresume-types#115)**: the original `Bash(git diff*)`
+  entry also prefix-matched `git difftool --extcmd='sh -c "…"'` —
+  `difftool`'s `--extcmd` runs an arbitrary local command, and Claude
+  Code's prefix match has no word-boundary awareness (the same class
+  of gap as
+  [the `gh api` DELETE-verb trap](#the-gh-api-delete-verb-and-flag-position-trap)
+  below). It is now two entries, `Bash(git diff)` (bare) and
+  `Bash(git diff *)` (space-delimited), which still match bare
+  `git diff` and any `git diff <args>` but no longer share a prefix
+  with `git difftool…`, since that command has no space immediately
+  after `diff`. Likewise, `Bash(git branch -v*)` also prefix-matched
+  `git branch -v -D <branch>` — a force-delete that the
+  `Bash(git branch -D*)` deny below does not catch, since that deny's
+  literal prefix requires `-D` immediately after `branch`, not after
+  another flag — the same positional gap documented above for
+  `git push --force*`. It is now the single exact form
+  `Bash(git branch -v)` (no trailing wildcard), matching this
+  repository's only observed use (a bare verbose listing, confirmed by
+  grepping the repository for other invocations) without matching any
+  argument that follows `-v`.
 - **Read-only `gh` queries plus reversible `gh` mutations**: issue/PR
   viewing, listing, diffing, and CI-check reads are pure reads; issue
   and PR comment/edit, PR review, and PR creation are mutations, but
