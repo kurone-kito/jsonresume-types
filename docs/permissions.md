@@ -550,10 +550,18 @@ allow/deny split, softened as described below.
   allowlisted here), so it is not a fully standalone exploit, but it
   bypasses the origin-only intent for _any_ pre-configured remote, not
   only origin-prefixed ones. Two defense-in-depth denies,
-  `Bash(git fetch origin --multiple*)` and `Bash(git fetch origin -m*)`,
-  block the direct forms, with the same flag-position residual as the
-  `--upload-pack` deny above (`git fetch origin main --multiple
-  evil` is a different literal prefix and is not caught).
+  `Bash(git fetch origin --m*)` and `Bash(git fetch origin -m*)`, block
+  the direct forms, with the same two residual-gap classes as the
+  `--upload-pack` deny above: the same flag-position gap (`git fetch
+  origin main --multiple evil` is a different literal prefix and is
+  not caught), and — this time closed rather than merely disclosed,
+  after both Codex and CodeRabbit independently caught an initial
+  `--multiple*`-only deny missing it — the option-abbreviation gap:
+  git's `--multiple` is the only `git fetch` long option starting
+  with `--m` (confirmed via `git fetch -h`), so `--m*` catches every
+  unambiguous abbreviation (`--mult`, `--multi`, …, verified
+  empirically) with no broader collateral than `--multiple*` itself
+  would have had.
 
   `fetch` still downloads objects and updates local remote-tracking
   refs (`refs/remotes/origin/*`); an explicit destination refspec
