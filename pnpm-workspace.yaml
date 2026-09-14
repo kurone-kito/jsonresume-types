@@ -6,4 +6,3 @@ linkWorkspacePackages: true
 onlyBuiltDependencies:
   - '@biomejs/biome'
   - es5-ext
-pmOnFail: ignore
