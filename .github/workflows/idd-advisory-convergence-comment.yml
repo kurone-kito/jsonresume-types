@@ -187,19 +187,22 @@ jobs:
           # rather than relying on content classification.
           COMMENT_BODY: ${{ github.event.review.body || github.event.comment.body }}
         # `pnpm exec` (the raw bin), not `pnpm run idd:*`: this step's
-        # checkout above pins `ref: main` (the trusted copy), but this
-        # invocation's own package.json script alias -- new in the same
-        # change that adds this file -- exists only on the unmerged PR
-        # branch until this PR merges, so `pnpm run idd:review-comment-
-        # origin` 403-free but still fails with `ERR_PNPM_NO_SCRIPT`
-        # against main's checkout (observed live on PR #106's own first
-        # push). The underlying bin ships with the already-installed
-        # `@kurone-kito/idd-skill` dependency regardless, so `pnpm exec`
-        # works from main immediately. All three invocations in this
-        # file use this form for the same reason and for consistency,
-        # unlike idd-advisory-convergence.yml's `pnpm run idd:*` steps,
-        # whose script aliases all already existed on `main` before this
-        # change.
+        # checkout above pins `ref: main` (the trusted copy). A `pnpm
+        # run idd:review-comment-origin` package.json script alias was
+        # briefly added for this invocation earlier on PR #106, but a
+        # newly-added alias exists only on the unmerged PR branch until
+        # merge, so it 403-free but still failed with
+        # `ERR_PNPM_NO_SCRIPT` against main's checkout -- observed live
+        # on PR #106's own first push. No such alias exists in
+        # package.json today (it was reverted for this reason); the
+        # underlying bin ships with the already-installed
+        # `@kurone-kito/idd-skill` dependency regardless of any
+        # package.json alias, so `pnpm exec` works from main
+        # immediately with no alias needed at all. All three
+        # invocations in this file use this form for the same reason
+        # and for consistency, unlike idd-advisory-convergence.yml's
+        # `pnpm run idd:*` steps, whose script aliases all already
+        # existed on `main` before this change.
         run: pnpm exec idd-review-comment-origin
       - name: Check for newer qualifying event
         id: debounce
