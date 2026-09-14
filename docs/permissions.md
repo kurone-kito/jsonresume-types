@@ -488,11 +488,20 @@ allow/deny split, softened as described below.
   `--upload-pack` has no effect at all under the smart-HTTP protocol
   (confirmed empirically: git prints `warning: setting remote service
   path not supported by protocol` and proceeds with an ordinary fetch,
-  never invoking the given program). Only a local-path or `ext::`
-  `origin` actually runs the override locally, regardless of scheme;
-  no clone of this repository known to be in current use configures
-  one, but that is a fact about configured remotes across clones, not
-  a property either the allow rule or this repository guarantees for
+  never invoking the given program). A local-path or `ext::` `origin`
+  runs the override locally; an `ssh://` `origin` is safe only when the
+  account it connects to is itself restricted to git operations, the
+  way GitHub's is — an ordinary shell account is not, and runs the
+  override as a remote command over that same SSH connection instead
+  (confirmed empirically with a `GIT_SSH_COMMAND` shim standing in for
+  the SSH client: git invokes it with the `--upload-pack` value as a
+  literal argument — `sh -c "…" '<repo-path>'` — which an ordinary
+  SSH server would execute as the remote command, not something
+  git-shell-restricted GitHub does). No clone of this repository known
+  to be in current use configures a local-path/`ext::` origin or an
+  unrestricted `ssh://` account, but that is a fact about configured
+  remotes and the accounts they connect to across clones, not a
+  property either the allow rule or this repository guarantees for
   every adopter of this baseline. A defense-in-depth deny,
   `Bash(git fetch origin --upload-pack*)`, blocks the direct
   `git fetch origin --upload-pack=…` form the same way the DELETE-verb
@@ -513,8 +522,9 @@ allow/deny split, softened as described below.
   an abbreviated flag proceeds past option parsing to the transport
   step, while a genuinely unknown flag is rejected immediately with
   `error: unknown option`). Given no clone of this repository in
-  current use has a locally/`ext::`-exploitable `origin`, these
-  residuals are accepted rather than pursued further. `fetch`
+  current use has a locally/`ext::`-exploitable `origin` or an `origin`
+  backed by an unrestricted `ssh://` account, these residuals are
+  accepted rather than pursued further. `fetch`
   still downloads objects and updates local remote-tracking refs
   (`refs/remotes/origin/*`), so it is not strictly read-only, but it
   never touches the working tree, the index, or a local branch
