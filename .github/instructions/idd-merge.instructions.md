@@ -18,7 +18,7 @@ Before any mutating action in F3, apply the
    different `{claim-id}` (even under the same agent ID), the claim was
    lost — report and stop.
 2. Defensive route check: re-read the repository's recorded merge
-   policy (missing → treat as `fully_autonomous_merge`, the distributed
+   policy (missing → treat as `human_merge`, the distributed
    default). Then apply:
    - `fully_autonomous_merge`: continue.
    - `separate_merge_agent`: continue only when repository documentation
@@ -65,10 +65,10 @@ Before any mutating action in F3, apply the
    execute `gh pr merge` in this pass.
 
    If the carried F2 evidence includes helper-side
-   `dispositionEvidence`, require `dispositionEvidence.route ==
-   "proceed"` and `dispositionEvidence.blockingCount == 0` before merge.
-   If either check fails, stop and return to E1/E4 with the reported
-   missing thread/comment disposition items. Use only the carried
+   `dispositionEvidence`, require `route == "proceed"` and
+   `blockingCount == 0` before merge, except the F2 override when
+   `soleCauseAckOnlyPostDisposition` is true. Any other missing item
+   still returns to E1/E4. Use only the carried
    `pre-merge-readiness` `dispositionEvidence` shape here; E7 verifier
    fields (`passed`, `items[]`) are not merge-gate substitutes.
 
@@ -146,6 +146,9 @@ Before any mutating action in F3, apply the
 
    - current HEAD SHA **equals** the carried F2-snapshot head
      (`{f2-head-SHA}`);
+   - PR `baseRefName` (fresh `gh pr view {pr-number} --json baseRefName`)
+     **equals** `{development-branch}` — catches a retarget after D3's
+     one-time check; a mismatch is a wrong-base hold, not a merge;
    - review-currency route is `proceed`;
    - `F3_UNRESOLVED_ACTIONABLE_COUNT` is `0`;
    - advisory `f3Outcome` is `SATISFIED` (the authoritative advisory
@@ -157,7 +160,29 @@ Before any mutating action in F3, apply the
      sub-condition on it
      ([Terminal routing](idd-advisory-wait.instructions.md#terminal-routing-1570));
    - all required CI checks pass for the current head;
-   - claim ownership still uses your `{claim-id}`.
+   - claim ownership still uses your `{claim-id}`;
+   - D3.5 steps 6-7 and D3.7 (`idd-pr-submit.instructions.md`) have
+     been re-run against `${PR_HEAD_SHA_F3}` (#2749) — covers commits
+     that landed between F2 and this final gate, for example a
+     required `{development-branch}` sync. Before running them,
+     confirm the local worktree is checked out at `${PR_HEAD_SHA_F3}`
+     exactly (`git fetch` plus `git checkout`/`git reset --hard` if a
+     resumed or external-push session left it stale) — D3.5 step 7's
+     `git log` and D3.7's inherited `git diff` both read local git
+     state, not the remote PR directly. Skip D3.5 steps 6-7 under the
+     same non-default-`{development-branch}` exemption D3.5 itself
+     carries. On a mismatch, fix it per D3.5/D3.7's own documented
+     handling. Any fix here — whether or not it changes HEAD, since a
+     PR-body edit alone (D3.7's remediation, or D3.5 step 6's) still
+     counts — invalidates step 3's own **Re-validate claim** ("confirm
+     the active claim still uses your current `{claim-id}`") and
+     **Advisory state revalidation** (re-run AW1, escalating through
+     AW2/AW3 as needed) checks above; re-run both of those before
+     merging. If the fix additionally amended or rebased a commit
+     (changing HEAD),
+     return to E1 instead of just re-validating in place — F2's own
+     snapshot is invalidated by a new HEAD. Otherwise repeat this field
+     once; if it still fails, stop and do not merge.
 
    For the head-SHA field, use this **copy-paste-safe, fail-closed**
    check — both operands fully quoted, no glob, abort on mismatch —
@@ -213,9 +238,20 @@ Before any mutating action in F3, apply the
        time passes between the plain merge's failure and the retry, and
        `--admin` bypasses the entire ruleset), with a fresh GitHub merge
        state of `mergeable: "MERGEABLE"` and `mergeStateStatus` settled
-       to `"CLEAN"` or `"BEHIND"` also required. `idd-merge-execute.mjs
-       --apply` applies this automatically and records the outcome in
-       the verdict's `adminFallbackUsed` field.
+       to `"CLEAN"` or `"BEHIND"` also required.
+       `isSafeSoloCodeownerAdminMergeState` still refuses
+       `mergeStateStatus: "BLOCKED"`. When the base ruleset does not
+       require CODEOWNER review, the `status: "clear"` trigger does not
+       match and a `BLOCKED` state is not by itself a CODEOWNER
+       deadlock; the remaining escalation on **this topology** is a
+       human `--admin` (or `hold-and-report`). Distributed
+       `auto-admin-retry` is unchanged when `status: "clear"` with a
+       bypass-available `reason`, `prAuthorIsSoleEligibleCodeowner:
+       true`, and `codeownerEligibilityUnreadable: false` hold. See
+       `docs/permissions.md` (kurone-kito/idd-skill#1663) for this
+       repository's own dated observation.
+       `idd-merge-execute.mjs --apply` applies this automatically and
+       records the outcome in the verdict's `adminFallbackUsed` field.
 
        ```sh
        gh pr merge {pr-number} --merge --match-head-commit "${PR_HEAD_SHA_F3}" --admin
@@ -259,11 +295,17 @@ Before any mutating action in F3, apply the
 
 ## F4 — Cleanup
 
-1. Confirm the post-merge digest update above exists or repair it after
+1. **Non-default development branch**: if `{development-branch}` is not
+   the repository's default branch, GitHub did not auto-close any issue
+   on merge (see `idd-pr-submit.instructions.md` D3.5) — close each
+   issue in D3's deliberate closing set explicitly, not only the
+   claimed issue: `gh issue close {issue-number} --comment "Merged via
+   #{pr-number}."`.
+2. Confirm the post-merge digest update above exists or repair it after
    re-validating the claim. Do not minimize the digest as an
    operational marker unless a future cleanup policy explicitly
    supports digest retirement.
-2. Run merged-PR comment cleanup (must not run before F3 succeeds).
+3. Run merged-PR comment cleanup (must not run before F3 succeeds).
    Re-validate the active claim before each GitHub minimization
    mutation.
 
@@ -303,6 +345,15 @@ Before any mutating action in F3, apply the
    node scripts/audit-pr-cleanup.mjs --pr <pr-number> --dry-run --format table
    ```
 
+   **In-flight cleanup-run wait (#2846)**: immediately before actually
+   posting below (fresh each time, not cached from here — a run's
+   status can change during dry-run/apply), check whether this PR's
+   `post-merge-cleanup.yml` run is still in flight, waiting (bounded)
+   for it to finish if so — see `docs/idd-comment-minimization.md`'s
+   In-flight cleanup-run wait. Either way, continue to the rule below
+   unchanged: it reads whatever that run may have posted and decides
+   ownership from the marker's own recorded status.
+
    **Duplicate-success-record skip rule**: before posting any evidence
    comment below, skip it if the PR already carries a
    `<!-- idd-cleanup-evidence:` comment recording a successful outcome
@@ -324,7 +375,7 @@ Before any mutating action in F3, apply the
    shows `needs-apply`):
 
    - **`clean`**: no candidates and no permission-blocked items.
-     Proceed to step 3.
+     Proceed to step 4.
 
    - **`needs-apply`**: eligible candidates exist and the viewer can
      minimize them. Apply is mandatory. Re-validate the active claim,
@@ -343,17 +394,39 @@ Before any mutating action in F3, apply the
      duplicate-success-record skip rule above; otherwise post the
      evidence comment (`status`, `applied`, `failed`, `skipped`,
      `viewer-cannot-minimize` counts for `applied`, or a converged
-     `clean` record) so this run's work is recorded. Proceed to step 3.
+     `clean` record) so this run's work is recorded. Proceed to step 4.
 
-     If the apply `status` is `failed` or `incomplete`: post the
-     cleanup-failure comment format instead, including the
-     `viewer-cannot-minimize` count when non-zero. Explicit evidence,
-     not a merge gate — the merge already succeeded. Proceed to step 3.
+     The helper internally retries a whole scan-and-minimize pass, bounded,
+     when a fresh rescan still reports candidates after applying (a
+     candidate that only became eligible after the previous pass, e.g.
+     GraphQL read-after-write lag) — the common case still converges to
+     `applied`/`clean` within this one invocation. If the output also
+     reports `retryBoundExhausted: true` (visible as
+     `retryBoundExhausted=true` in table format), the retry bound was
+     reached while a rescan still found candidates. Route by the apply
+     `status` exactly as above, even then: if `status` is still
+     `applied`/`clean`, follow that evidence-comment path and note the
+     `retryAttempts` count as an informational, non-blocking
+     residual-lag signal rather than a defect; if `status` came back
+     `incomplete` (the fresh rescan found a genuine permission-blocked
+     remainder) or `failed`, follow the `failed`/`incomplete`
+     cleanup-failure path below instead — `retryBoundExhausted: true`
+     never overrides a non-success `status`.
+
+     If the apply `status` is `failed`, `incomplete`, or
+     `rescan-failed`: post the cleanup-failure comment format instead,
+     including the `viewer-cannot-minimize` count when non-zero.
+     `rescan-failed` means the confirming rescan itself errored after a
+     mutation (already-applied work is preserved in the report but
+     convergence was never confirmed) — note that distinction in the
+     comment and re-run `--apply` to confirm convergence. Explicit
+     evidence, not a merge gate — the merge already succeeded. Proceed
+     to step 4.
 
    - **`permission-blocked`**: skipped items exist with
      `viewerCanMinimize: false` and no apply-eligible candidates found.
      Post a cleanup-permission-blocked comment listing the blocked
-     candidates and the count, then proceed to step 3.
+     candidates and the count, then proceed to step 4.
 
    For the GraphQL fallback (helper unavailable): check
    `viewerCanMinimize` and `isMinimized` before minimizing; skip
@@ -368,10 +441,91 @@ Before any mutating action in F3, apply the
    See `docs/idd-comment-minimization.md` for the evidence comment
    format, cleanup-failure comment format, permission-blocked comment
    format, and fallback GraphQL commands.
-3. Delete the local worktree and local branch.
-4. Update the local `main` branch.
-5. If GitHub auto-delete is disabled: delete the remote branch too.
-   (Worktrunk may be used for steps 3–5.)
+4. Concurrent workers sharing one clone: serialize this step's fetch
+   and step 5's `worktree remove` behind the
+   [clone-scoped lock](../../docs/idd-helper-scripts.md#clone-scoped-lock).
+   From the **primary worktree** — the worktree being cleaned up is
+   still checked out to its issue branch at this point, so running
+   this elsewhere would fast-forward the wrong branch — switch to
+   `{development-branch}` (the PR's own validated target branch;
+   resolved in `idd-work.instructions.md`'s B1
+   [Resolve the development branch](idd-work.instructions.md#b1--create-worktree-with-branch)
+   step) explicitly before fast-forwarding it, rather than assuming it
+   is already checked out there:
+
+   ```sh
+   git fetch origin {development-branch}
+   git switch {development-branch} || git switch -c {development-branch} --track origin/{development-branch}
+   git merge --ff-only origin/{development-branch}
+   ```
+
+   The switch falls back to creating a local tracking branch when the
+   primary worktree has no local `{development-branch}` yet (expected
+   whenever it differs from the repository default, since B1 branches
+   new worktrees straight from `origin/{development-branch}` without
+   ever checking it out in the primary worktree).
+
+   Doing this before worktree/branch deletion (next step) ensures
+   WorkTrunk's own merge-status check, which reads the local
+   `{development-branch}` rather than `origin/{development-branch}`,
+   sees the just-merged branch as already merged on its first attempt
+   instead of reporting `branch_outcome: retained_unmerged` and
+   declining to delete it (`#2331`). This local checkout is a plain git
+   operation over the merged feature branch's own target and is
+   unrelated to the trusted-checkout-source concern in B1 Step 1 — if
+   `{development-branch}` differs from the repository's default branch,
+   switch the primary worktree back to the default branch
+   (`git switch <default-branch>`) once the remaining F4 cleanup steps
+   below complete, so the next B1 pass finds the primary worktree on
+   its expected trusted checkout.
+5. Run from the **primary worktree**, never from inside the worktree
+   being removed. Any removal (plain or `--force`) silently discards
+   ignored files too, including inside a submodule. Scope Git
+   commands to `<path>`. Inspect leftover files under a `-`
+   submodule path directly (not a repo).
+
+   Use `--untracked-files=normal` (not `all`). A clean submodule
+   worktree can still hide a stash or unpushed commit:
+
+   - `git -C <path> status --porcelain --ignored --untracked-files=normal`
+   - `git -C <path> submodule status --recursive`
+   - `git -C <path> submodule foreach --recursive 'git status
+     --porcelain --ignored --untracked-files=normal; git stash list;
+     git rev-list --all --not --remotes --count'`
+
+   Generated output is disposable only if a configured project
+   command can reproduce it. Preserve anything else first. Copy
+   secrets (e.g. `.env`) out only — never commit or push them.
+   Non-secret work may go to a **different** ref or be copied out —
+   not to `<branch-name>` itself, which this step deletes next.
+   Immediately before each `worktree remove`, re-validate this
+   session's claim and worktree lock (`idd-claim.instructions.md`);
+   stop if either is no longer ours.
+   Then delete the worktree, then the branch:
+
+   - `git worktree remove <path>`. If it fails with `fatal: working
+     trees containing submodules cannot be moved or removed`, retry
+     with `git worktree remove --force <path>`. Use `--force` only
+     after that review finds nothing worth preserving.
+   - `git branch -d <branch-name>` (the baseline permission profile
+     denies `-D`; see `docs/permissions.md`). Local `{development-branch}`
+     was already fast-forwarded to the merge commit by the previous
+     step, so this should not fail with `error: the branch
+     '<branch-name>' is not fully merged`; if it still does,
+     investigate before retrying rather than assuming a stale local
+     `{development-branch}` is the cause.
+
+6. If GitHub auto-delete is disabled: delete the remote branch too.
+   (WorkTrunk may be used for steps 5–6, the deletion steps —
+   step 4's local `{development-branch}` update is a plain git
+   operation, not a WorkTrunk one.)
+7. Re-validate the active claim one final time. If it still uses your
+   `{claim-id}`, post `unclaimed-by` for your own `{agent-id}` /
+   `{claim-id}` (see
+   [Unclaim format](idd-overview-core.instructions.md#unclaim-format))
+   to release the claim now that cleanup is complete (`#2220`). If it
+   no longer uses your `{claim-id}`, do not post a release comment —
+   another session already took over.
 
 ## F5 — Loop
 
