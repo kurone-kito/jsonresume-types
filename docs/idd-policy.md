@@ -25,6 +25,35 @@ artifact edits needed)
 - **claim-stale-age**: 24 h
 - **claim-heartbeat-interval**: 12 h
 
+## Forced-Handoff Recovery
+
+**Status**: `forcedHandoff.mode: "human-gated"` (adopted; #125). Before
+this change, `.github/idd/config.json` had no `forcedHandoff` field,
+which defaults to `disabled` per the policy schema, so a stuck
+non-stale claim (an active claim not yet past the 24 h
+`claim-stale-age` threshold, but whose owning session is confirmed
+gone) had no recovery path short of waiting out the stale-takeover
+clock.
+
+**What it enables**: a human-verified exception letting a maintainer
+transfer a stuck, non-stale claim through the interactive
+`idd-force-handoff` tool, before the 24 h stale-takeover would
+otherwise apply.
+
+`forcedHandoff.authorityPolicy` stays at its schema default,
+`owners-and-maintainers-only` -- no separate maintainer-authority tier
+is configured for this repository.
+
+**Autopilot boundary**: autopilot and unattended agents must never
+author the `forced-handoff` marker themselves -- only a human running
+the TTY-gated `idd-force-handoff` helper can. Per
+`idd-resume.instructions.md`: "Autopilot and unattended agents must
+never invent, request, or broaden forced handoff; they may only
+consume already-recorded human-gated evidence." An agent asked to
+proceed with a forced handoff must report the stalled-claim evidence
+back and hand the operator a runnable helper invocation, never post
+the marker on the operator's behalf.
+
 ## CI Wait Policy
 
 - **running timeout**: `PT30M` / 30 min
@@ -77,6 +106,8 @@ confirmation of which prefix actually applies here.
 
 - **`issueAuthoring.maxClarificationRounds`**: `3` (default)
 - **`issueAuthoring.authoringLabelName`**: `status:authoring` (default)
+- **`issueAuthoring.journalIssue`**: `kurone-kito/jsonresume-types#124`
+  (resolves #119)
 
 ## Worktree Guard
 
