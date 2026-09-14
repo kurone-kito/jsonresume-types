@@ -68,15 +68,21 @@
 # detection. Unlike that sibling file, every invocation here uses
 # `pnpm exec idd-<name>` (the raw bin) rather than `pnpm run idd:<name>`:
 # this job's checkout pins `ref: main` (the trusted copy) for every
-# trigger, and a `pnpm run` script alias newly introduced by the same
-# change that adds this workflow file exists only on the unmerged PR
-# branch until that PR merges, so `pnpm run idd:<new-name>` fails
-# against main's checkout with `ERR_PNPM_NO_SCRIPT` (observed live on
-# PR #106's own first push, Copilot review). The underlying bins ship
-# with the already-installed `@kurone-kito/idd-skill` dependency
-# regardless of this repository's own package.json script aliases, so
-# `pnpm exec` works from `main` immediately; every invocation below uses
-# this form uniformly, including the one whose alias already predates
+# trigger. A `pnpm run` script alias for this file's own invocation was
+# briefly added on the unmerged PR branch that introduced this file, but
+# a newly-added alias exists only on that branch until it merges, so
+# `pnpm run idd:<new-name>` failed against main's checkout with
+# `ERR_PNPM_NO_SCRIPT` (observed live on PR #106's own first push,
+# Copilot review) -- that specific alias was reverted for this reason.
+# Separately, `idd:review-comment-origin` and `idd:advisory-comment-debounce`
+# package.json aliases now exist on `main` (added by a later, unrelated
+# change; see "Classify review comment" below), but this file still
+# invokes the raw bin uniformly across all three steps to avoid coupling
+# this trusted-checkout job to package.json script-alias drift: the
+# underlying bins ship with the already-installed `@kurone-kito/idd-skill`
+# dependency regardless of any package.json alias, so `pnpm exec` works
+# from `main` immediately with no alias needed at all -- including for
+# the one alias (`idd:rerun-advisory-convergence`) that already predated
 # this file.
 #
 # Debounce: a burst of IDD-originated comments can fire
