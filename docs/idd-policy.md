@@ -216,7 +216,11 @@ the latest base -- exactly the condition the E-phase branch-sync check and
 F1 already gate their own `behind-no-conflict` routing on ("when branch
 protection or recorded repository policy requires an up-to-date head");
 this ruleset does not impose that requirement, so that up-to-date-head
-routing condition is currently never triggered for this repository.
+routing condition is not triggered under normal, successfully-read
+ruleset operation for this repository. This does not retire the
+fail-closed exception both checks also gate on: an unreadable or
+ambiguous protection/ruleset read still routes through the same
+sync-required path regardless of this ruleset's actual configured value.
 Live-reverified during the
 v0.11.0 re-import (roadmap #102, #110); see "v0.11.0 Re-import Notes"
 below.
@@ -412,8 +416,8 @@ future pass does not need to re-investigate the same ground:
   adopted for any of the three -- `.github/idd/config.json` sets none of
   `providerHealth.*`, `localValidationEvidence.*`, or `providerOutage.*`,
   so all three continue to operate on the distributed defaults (see
-  `docs/policy-constants.md`'s "Provider Outage Defaults" and "Local
-  Validation Evidence Defaults" tables).
+  `docs/policy-constants.md`'s "Provider Outage Declaration Defaults" and
+  "Local Validation Evidence Defaults" tables).
 - **Live ruleset evidence**: see the corrected "Advisory-Convergence
   Required Check" section above (`strict_required_status_checks_policy:
   false`, `bypass_actors: []`, `current_user_can_bypass: "never"`) -- not
@@ -445,12 +449,18 @@ future pass does not need to re-investigate the same ground:
   The `required status checks configured on main (4, strict=false)` line
   is also the resolution evidence for the `branch protection not readable`
   finding this document previously carried under "Known `idd-doctor`
-  Warnings" (#75): the installed `idd-doctor` now reads the Rulesets API
-  directly instead of the classic (404-ing) branch-protection endpoint
-  that finding described, so it no longer fires and its bullet has been
-  removed from that section. The other two previously-recorded warnings
-  (post-merge cleanup backlog, release-tag drift) also did not fire in
-  this run, but remain recorded there as still-live, currently-quiet
+  Warnings" (#75): the installed `idd-doctor` still queries both
+  governance surfaces (the Rulesets endpoint and the classic
+  branch-protection endpoint, which still 404s), but now trusts that
+  classic 404 as genuinely-empty protection rather than an unreadable
+  failure -- the `ciGate.trustEmptyProtectionReads: true` opt-in already
+  recorded under "v0.6.0 Re-import Notes" above -- so the check no longer
+  reports "not readable" once the Rulesets read alone succeeds, and it is
+  that successful Rulesets read which powers the "required status
+  checks" finding itself. Its bullet has accordingly been removed from
+  that section. The other two previously-recorded warnings (post-merge
+  cleanup backlog, release-tag drift) also did not fire in this run, but
+  remain recorded there as still-live, currently-quiet
   mechanisms rather than resolved findings -- see that section for the
   current-run detail on each.
 - **Named-gap import method and dual-mirror invariant**: the re-import
