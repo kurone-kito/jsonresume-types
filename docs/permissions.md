@@ -444,22 +444,174 @@ allow/deny split, softened as described below.
   `log`, `show`, `branch --list` / `--show-current` / `-a` / `-v`,
   `worktree list`, `rev-parse`, `remote -v` / `remote show`, and
   `blame` are pure reads. `fetch` is the one deliberate exception, and
-  it is scoped to `Bash(git fetch origin*)` rather than a bare
-  `Bash(git fetch*)`: an unscoped `fetch` allow would let an argument
-  supply an arbitrary transport instead of the configured `origin`
-  remote — for example the `ext::` transport helper, which runs its
-  argument as a local subprocess (a documented git RCE vector), or a
-  `--upload-pack=<program>` override. Pinning the remote name as a
-  literal prefix closes that: everything after `origin` in a fetched
-  command is refspec/flag context for that already-configured, trusted
-  remote, not a second URL. `fetch` still downloads objects and updates
-  local remote-tracking refs (`refs/remotes/origin/*`), so it is not
-  strictly read-only, but it never touches the working tree, the
-  index, or a local branch pointer. Mutating `git` commands (`commit`,
-  `push`, `worktree add`/`remove`, branch creation) are deliberately
-  **not** in the baseline; they stay behind the normal permission
-  prompt, or a session may layer them into its own
-  `.claude/settings.local.json`.
+  it is scoped to the single entry `Bash(git fetch origin *)` rather
+  than a bare `Bash(git fetch*)` or a raw `Bash(git fetch origin*)`
+  prefix. A trailing `*` that is a rule's **only** wildcard also
+  matches the bare command under Claude Code's own documented matching
+  rules, so this one entry covers both bare `git fetch origin` and
+  `git fetch origin <refspec/flags>` — no separate exact-match entry is
+  needed. An unscoped `fetch` allow would let an argument supply an
+  arbitrary transport instead of the configured `origin` remote — for
+  example the `ext::` transport helper, which runs its argument as a
+  local subprocess (a documented git RCE vector) — and a raw
+  `git fetch origin*` prefix has its own, narrower version of the same
+  problem: it also matches any remote name merely _starting with_
+  `origin` (for example `originEvil`), because Claude Code's prefix
+  match has no word-boundary awareness. If such a remote is itself
+  configured to a local path or an `ext::` URL, fetching it reopens the
+  arbitrary-transport vector this rule exists to close (found
+  independently by both Copilot and Codex review on this change's own
+  pull request, kurone-kito/jsonresume-types#121; verified empirically
+  — configuring a local-path remote literally named `originEvil` and
+  fetching it with a malicious `--upload-pack` override executed the
+  given program locally, and the resulting command string matched the
+  old raw-prefix rule). Requiring a literal space immediately after
+  `origin` (or nothing at all, per the bare-command rule above) closes
+  both gaps the same way the `diff`/`branch -v` fix below does:
+  everything after `origin` (the space) in a fetched command is
+  refspec context for that already-configured, trusted remote — never
+  a second remote name or URL directly — **except when it is a flag**,
+  covered next.
+
+  **Every flag after `origin` is denied, not enumerated one at a
+  time.** Review on this same pull request (kurone-kito/jsonresume-types#121)
+  found three separate `git fetch` flags that each let `origin` reach a
+  different, untrusted transport despite the remote name being pinned,
+  discovered one at a time as each narrower fix still left the next
+  one open — `Bash(git fetch origin -*)` closes all three (and any
+  future one) at once, because both git's long (`--flag`) and short
+  (`-f`) option spellings begin with a single `-`:
+
+  - **`--upload-pack=<program>`** changes what program the transport
+    `origin` already resolves to invokes when serving the request, not
+    which remote is contacted. Verified empirically across every
+    transport: a local-path `origin` runs the given program locally;
+    an `ssh://` `origin` is safe only when the account it connects to
+    is itself restricted to git operations the way GitHub's is — an
+    ordinary shell account instead runs the override as a remote
+    command over that same SSH connection (shown with a
+    `GIT_SSH_COMMAND` shim: git sends the value as a literal argument,
+    `sh -c "…" '<repo-path>'`); `https://` and `ext::` are both
+    unaffected, but for different reasons — `--upload-pack` has no
+    effect at all under the smart-HTTP protocol (git prints `warning:
+    setting remote service path not supported by protocol` and
+    proceeds with an ordinary fetch), while an `ext::` origin is
+    already dangerous by simply being fetched at all (it always runs
+    its own configured command, independent of this override, which is
+    the base `ext::` risk the remote-name pinning above addresses).
+    git's own option parser also accepts any unambiguous abbreviation
+    of a long option (`--upload-pac=…` reaches the same behavior as
+    the full spelling).
+  - **`--multiple`/`-m`** turns every remaining positional argument
+    into an additional remote or remote-group name instead of refspec
+    context, so `git fetch origin --multiple <name>` fetches from
+    `<name>` too, regardless of what it is — defeating the origin-only
+    scoping this rule exists to provide. Verified empirically: a
+    pre-configured remote named `evil` pointing at a local-path `ext::`
+    helper was fetched and executed via `git fetch origin --multiple
+    evil`; a _raw_, not-pre-configured URL given directly to
+    `--multiple` does **not** work the same way, failing with `fatal:
+    no such remote or remote group:` — operands are resolved as
+    configured remote/group names, not URLs, so reaching this still
+    needs a remote already configured under some name (`git remote
+    add` is not itself allowlisted here). `--multiple` also has its own
+    abbreviation range (`--mult`, `--multi`, …) and, in its short form,
+    clusters behind one dash with any of `git fetch`'s several other
+    no-argument single-letter flags in either order (`git fetch origin
+    -pm evil` clusters `-p` with `-m`) — a flag that consumes a value,
+    such as `-j` (`--jobs <n>`), does not cluster this way (`-jm` is
+    rejected as a malformed integer, confirmed empirically), but the
+    surface among no-argument flags alone is already too open-ended for
+    a per-flag deny to enumerate.
+  - **`--recurse-submodules[=<mode>]`** recurses the fetch into every
+    populated submodule using _that submodule's own_ configured remote,
+    regardless of how trustworthy the superproject's `origin` is.
+    Verified empirically: a submodule whose remote was set to a
+    local-path `ext::` helper had that helper executed by `git fetch
+    origin --recurse-submodules=yes` against an otherwise ordinary
+    superproject `origin`. Unlike `--multiple`, this option has no
+    usable abbreviation at all — it collides with the sibling
+    `--recurse-submodules-default` option, so any prefix shorter than
+    the full spelling is rejected as ambiguous (confirmed empirically).
+
+  Chasing each of these with its own narrow deny (as earlier revisions
+  of this change did) means the fix is only ever as complete as the
+  flags anyone thought to test — the single `Bash(git fetch origin -*)`
+  deny instead closes the whole class, including any option a future
+  git version adds. This repository's own documented `git fetch origin`
+  usage never passes a flag (only bare or a plain refspec/branch name),
+  so the deny has no collateral cost here; an adopter that legitimately
+  needs a flag (`--prune`, `--tags`, …) sees the normal permission
+  prompt for it instead of a silent allow.
+
+  **Two residuals remain, and neither is closable by narrowing this
+  allow rule further** — the same category as the `gh api` DELETE-verb
+  trap below, and the same standard finding 1 above was already held
+  to (kurone-kito/jsonresume-types#115):
+
+  - **Flag position.** The deny's literal prefix requires the `-` to
+    appear immediately after `origin`; a flag placed after a refspec
+    (`git fetch origin main --upload-pack=…`) is a different literal
+    prefix and is not caught. This is the same flag-position gap
+    documented below for `git push --force*`.
+  - **Submodule recursion with no flag at all.** Git's own default for
+    `--recurse-submodules` when the option is absent entirely is
+    `on-demand`: a completely bare `git fetch origin` still recurses
+    into a populated submodule whenever the fetch changes that
+    submodule's recorded commit (verified empirically — advancing a
+    submodule's upstream and recording the new commit in the
+    superproject, then running a bare `git fetch origin`, invoked the
+    submodule's `ext::` remote with no flag present in the command at
+    all). No prefix rule can distinguish this from an ordinary, wanted
+    bare fetch: the command string is identical either way, and the
+    difference is _repository state_ — a populated submodule with an
+    untrustworthy remote — not anything expressible in the command
+    text. This repository has no submodules, so it is accepted as
+    low-priority rather than pursued further, the same disposition
+    finding 1 already established for a different residual. A clone
+    that does add an untrusted-remote submodule can disable the
+    default recursion entirely with `git config
+    fetch.recurseSubmodules false` (verified empirically to suppress
+    it) — a git-level configuration choice outside anything this
+    settings file can express or enforce.
+
+  `fetch` still downloads objects and updates local remote-tracking
+  refs (`refs/remotes/origin/*`); an explicit destination refspec
+  (`git fetch origin main:refs/heads/release`) can also create or
+  update a local branch ref directly (confirmed empirically), so
+  `fetch` is not strictly read-only and not strictly scoped to
+  remote-tracking refs either, but it never touches the working tree
+  or the index. Mutating `git` commands (`commit`, `push`, `worktree
+  add`/`remove`, branch creation) are deliberately **not** in the
+  baseline; they stay behind the normal permission prompt, or a
+  session may layer them into its own `.claude/settings.local.json`.
+- **Prefix-matching gaps closed for `diff` / `branch -v`
+  (kurone-kito/jsonresume-types#115)**: the original `Bash(git diff*)`
+  entry also prefix-matched `git difftool --extcmd='sh -c "…"'` —
+  `difftool`'s `--extcmd` runs an arbitrary local command, and Claude
+  Code's prefix match has no word-boundary awareness (the same class
+  of gap as
+  [the `gh api` DELETE-verb trap](#the-gh-api-delete-verb-and-flag-position-trap)
+  below). It is now the single entry `Bash(git diff *)`: a trailing
+  `*` that is a rule's only wildcard also matches the bare command
+  under Claude Code's own documented matching rules, so this one entry
+  still matches bare `git diff` and any `git diff <args>`, but no
+  longer shares a prefix with `git difftool…`, since that command has
+  no space immediately after `diff` (no separate exact-match entry is
+  needed). Likewise, `Bash(git branch -v*)` also prefix-matched
+  `git branch -v -D <branch>` — a force-delete that the
+  `Bash(git branch -D*)` deny below does not catch, since that deny's
+  literal prefix requires `-D` immediately after `branch`, not after
+  another flag — the same positional gap documented below for
+  `git push --force*` in
+  [the `gh api` DELETE-verb (and flag-position) trap](#the-gh-api-delete-verb-and-flag-position-trap).
+  It is now the single exact form `Bash(git branch -v)` (no trailing
+  wildcard), matching this repository's only observed use (a bare
+  verbose listing, confirmed by grepping the repository for other
+  invocations) without matching any argument that follows `-v`. This
+  repository has no `idd-template/` counterpart to mirror the
+  narrowing into; an equivalent fix there is upstream's own concern
+  (see the issue this bullet cites).
 - **Read-only `gh` queries plus reversible `gh` mutations**: issue/PR
   viewing, listing, diffing, and CI-check reads are pure reads; issue
   and PR comment/edit, PR review, and PR creation are mutations, but
@@ -527,11 +679,14 @@ allow/deny split, softened as described below.
 ### What the baseline denies
 
 `git push --force` / `--force-with-lease` / `-f`, `git reset --hard`,
-`git clean -f`, `git branch -D`, `gh repo delete`, `gh issue delete`,
-all three `gh api` DELETE-verb spellings (`-X DELETE`, `--method
-DELETE`, `--method=DELETE`, kept as defense in depth even though `gh
-api` itself is not allowlisted — see the trap below), and — template
-counterpart only —
+`git clean -f`, `git branch -D`, every flag after `git fetch origin`
+(kurone-kito/jsonresume-types#115 and kurone-kito/jsonresume-types#121;
+defense in depth for the `git fetch origin` allow, with the residual
+gaps described above), `gh repo delete`, `gh issue delete`, all three `gh api`
+DELETE-verb spellings (`-X DELETE`, `--method DELETE`,
+`--method=DELETE`, kept as defense in depth even though `gh api` itself
+is not allowlisted — see the trap below), and — template counterpart
+only —
 `node scripts/idd-merge-execute.mjs` / `node bin/idd-merge-execute.mjs`
 as a literal invocation.
 
