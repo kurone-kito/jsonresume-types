@@ -467,178 +467,113 @@ allow/deny split, softened as described below.
   given program locally, and the resulting command string matched the
   old raw-prefix rule). Requiring a literal space immediately after
   `origin` (or nothing at all, per the bare-command rule above) closes
-  both gaps the same way the `diff`/`branch -v` fix below does: absent
-  the `--multiple`/`-m` exception documented next, everything after
-  `origin` (with the space) in a fetched command is refspec/flag
-  context for that already-configured, trusted remote, not a second
-  remote name or URL.
+  both gaps the same way the `diff`/`branch -v` fix below does:
+  everything after `origin` (the space) in a fetched command is
+  refspec context for that already-configured, trusted remote — never
+  a second remote name or URL directly — **except when it is a flag**,
+  covered next.
 
-  A `--upload-pack=<program>` override is a narrower residual that
-  scoping the remote name this tightly does **not** close on its own
-  (kurone-kito/jsonresume-types#115): it changes what program the
-  transport the legitimate `origin` remote already resolves to invokes
-  when serving the request, not which remote is contacted, so on a
-  repository whose `origin` is itself a local path, `--upload-pack`
-  still runs the given program locally. Whether this is
-  exploitable depends on `origin`'s configured transport, which varies
-  by clone, not by repository: this operator's own clone uses a fixed
-  `ssh://github.com/…` remote, so the override is sent to GitHub's
-  restricted SSH command handler rather than executed locally; a clone
-  over `https://` (for example, the sandbox GitHub's own Copilot code
-  review runs its checkout in) is unaffected for a different reason —
-  `--upload-pack` has no effect at all under the smart-HTTP protocol
-  (confirmed empirically: git prints `warning: setting remote service
-  path not supported by protocol` and proceeds with an ordinary fetch,
-  never invoking the given program). An `ext::` `origin` is unaffected
-  by `--upload-pack` for the same reason, not the one this paragraph
-  opened with: fetching an `ext::` URL at all already runs _its own_
-  configured command regardless of any override (that is the base
-  `ext::` risk this rule's remote-name pinning addresses), but
-  `--upload-pack` specifically has no effect on top of it — confirmed
-  empirically the same way as `https://`, same warning, no second
-  invocation. A local-path `origin` does run the override locally. An
-  `ssh://` `origin` is safe only when the account it connects to is
-  itself restricted to git operations, the way GitHub's is — an
-  ordinary shell account is not, and runs the override as a remote
-  command over that same SSH connection instead (confirmed empirically
-  with a `GIT_SSH_COMMAND` shim standing in for the SSH client: git
-  invokes it with the `--upload-pack` value as a literal argument —
-  `sh -c "…" '<repo-path>'` — which an ordinary SSH server would
-  execute as the remote command, not something git-shell-restricted
-  GitHub does). No clone of this repository known to be in current use
-  configures a local-path origin or an unrestricted `ssh://` account,
-  but that is a fact about configured remotes and the accounts they
-  connect to across clones, not a property either the allow rule or
-  this repository guarantees for every adopter of this baseline. A
-  defense-in-depth deny, `Bash(git fetch origin --upload-pack*)`,
-  blocks the direct `git fetch origin --upload-pack=…` form the same
-  way the DELETE-verb denies below do for `gh api`, with (at least) two
-  known residual gaps specific to this rule, on top of the general
-  quoting/splitting limitation Claude Code's own documentation
-  describes for every literal-text Bash rule (for example `git 'fetch'
-  origin --upload-pack=…` — a different literal string, unrelated to
-  `--upload-pack` itself, that this deny and every other rule in this
-  file share the same exposure to): the same flag-position gap as
-  those denies (`git fetch origin main
-  --upload-pack=…`, the flag placed after a refspec, is a different
-  literal prefix and is not caught), and, independently, git's own
-  option parser accepts any unambiguous abbreviation of a long option —
-  `git fetch origin --upload-pac=…` (or any shorter unambiguous prefix)
-  reaches the same local-execution behavior without matching this
-  deny's literal `--upload-pack` prefix at all (confirmed empirically:
-  an abbreviated flag proceeds past option parsing to the transport
-  step, while a genuinely unknown flag is rejected immediately with
-  `error: unknown option`). Given no clone of this repository in
-  current use has a locally-exploitable `origin` or an `origin` backed
-  by an unrestricted `ssh://` account, these residuals are accepted
-  rather than pursued further.
+  **Every flag after `origin` is denied, not enumerated one at a
+  time.** Review on this same pull request (kurone-kito/jsonresume-types#121)
+  found three separate `git fetch` flags that each let `origin` reach a
+  different, untrusted transport despite the remote name being pinned,
+  discovered one at a time as each narrower fix still left the next
+  one open — `Bash(git fetch origin -*)` closes all three (and any
+  future one) at once, because both git's long (`--flag`) and short
+  (`-f`) option spellings begin with a single `-`:
 
-  Separately, `--multiple`/`-m` turns every remaining positional
-  argument into an additional remote or remote-group name instead of
-  refspec context, so `git fetch origin --multiple <name>` fetches
-  from `<name>` too — matching this rule regardless of what `<name>`
-  is, defeating the origin-only scoping this rule exists to provide
-  (found via Codex review on kurone-kito/jsonresume-types#121; verified
-  empirically — a pre-configured remote named `evil` pointing at a
-  local-path `ext::` helper was fetched and executed the helper via
-  `git fetch origin --multiple evil`, and a _raw_, not-pre-configured
-  URL given directly to `--multiple` does **not** work the same way,
-  failing with `fatal: no such remote or remote group:` — `--multiple`
-  operands are resolved as configured remote/group names, not passed
-  through as URLs). Reaching this still requires a remote already
-  configured under some name (the same `git remote add` precondition
-  as the substring gap above; `git remote add` is not itself
-  allowlisted here), so it is not a fully standalone exploit, but it
-  bypasses the origin-only intent for _any_ pre-configured remote, not
-  only origin-prefixed ones. Two defense-in-depth denies,
-  `Bash(git fetch origin --m*)` and `Bash(git fetch origin -m*)`, block
-  the direct forms, with the same two residual-gap classes as the
-  `--upload-pack` deny above: the same flag-position gap (`git fetch
-  origin main --multiple evil` is a different literal prefix and is
-  not caught), and — this time closed rather than merely disclosed,
-  after both Codex and CodeRabbit independently caught an initial
-  `--multiple*`-only deny missing it — the option-abbreviation gap:
-  git's `--multiple` is the only `git fetch` long option starting
-  with `--m` (confirmed via `git fetch -h`), so `--m*` catches every
-  unambiguous abbreviation (`--mult`, `--multi`, …, verified
-  empirically) with no broader collateral than `--multiple*` itself
-  would have had.
+  - **`--upload-pack=<program>`** changes what program the transport
+    `origin` already resolves to invokes when serving the request, not
+    which remote is contacted. Verified empirically across every
+    transport: a local-path `origin` runs the given program locally;
+    an `ssh://` `origin` is safe only when the account it connects to
+    is itself restricted to git operations the way GitHub's is — an
+    ordinary shell account instead runs the override as a remote
+    command over that same SSH connection (shown with a
+    `GIT_SSH_COMMAND` shim: git sends the value as a literal argument,
+    `sh -c "…" '<repo-path>'`); `https://` and `ext::` are both
+    unaffected, but for different reasons — `--upload-pack` has no
+    effect at all under the smart-HTTP protocol (git prints `warning:
+    setting remote service path not supported by protocol` and
+    proceeds with an ordinary fetch), while an `ext::` origin is
+    already dangerous by simply being fetched at all (it always runs
+    its own configured command, independent of this override, which is
+    the base `ext::` risk the remote-name pinning above addresses).
+    git's own option parser also accepts any unambiguous abbreviation
+    of a long option (`--upload-pac=…` reaches the same behavior as
+    the full spelling).
+  - **`--multiple`/`-m`** turns every remaining positional argument
+    into an additional remote or remote-group name instead of refspec
+    context, so `git fetch origin --multiple <name>` fetches from
+    `<name>` too, regardless of what it is — defeating the origin-only
+    scoping this rule exists to provide. Verified empirically: a
+    pre-configured remote named `evil` pointing at a local-path `ext::`
+    helper was fetched and executed via `git fetch origin --multiple
+    evil`; a _raw_, not-pre-configured URL given directly to
+    `--multiple` does **not** work the same way, failing with `fatal:
+    no such remote or remote group:` — operands are resolved as
+    configured remote/group names, not URLs, so reaching this still
+    needs a remote already configured under some name (`git remote
+    add` is not itself allowlisted here). `--multiple` also has its own
+    abbreviation range (`--mult`, `--multi`, …) and, in its short form,
+    clusters behind one dash with any of `git fetch`'s several other
+    no-argument single-letter flags in either order (`git fetch origin
+    -pm evil` clusters `-p` with `-m`) — a flag that consumes a value,
+    such as `-j` (`--jobs <n>`), does not cluster this way (`-jm` is
+    rejected as a malformed integer, confirmed empirically), but the
+    surface among no-argument flags alone is already too open-ended for
+    a per-flag deny to enumerate.
+  - **`--recurse-submodules[=<mode>]`** recurses the fetch into every
+    populated submodule using _that submodule's own_ configured remote,
+    regardless of how trustworthy the superproject's `origin` is.
+    Verified empirically: a submodule whose remote was set to a
+    local-path `ext::` helper had that helper executed by `git fetch
+    origin --recurse-submodules=yes` against an otherwise ordinary
+    superproject `origin`. Unlike `--multiple`, this option has no
+    usable abbreviation at all — it collides with the sibling
+    `--recurse-submodules-default` option, so any prefix shorter than
+    the full spelling is rejected as ambiguous (confirmed empirically).
 
-  **The short form `-m` has one more residual `--m*` does not share:
-  option clustering.** Git's short-option parser accepts several
-  single-letter flags bundled behind one dash — `git fetch origin -pm
-  evil` (found via Copilot review on
-  kurone-kito/jsonresume-types#121; verified empirically) clusters
-  `-p` (`--prune`) with `-m` and reaches the same `--multiple`
-  behavior, but the command starts with `-p`, not `-m`, so neither
-  `Bash(git fetch origin --m*)` nor `Bash(git fetch origin -m*)`
-  matches. Any of `git fetch`'s several other single-letter flags that
-  take no argument of their own (`-v`, `-q`, `-a`, `-f`, `-t`, `-n`,
-  `-p`, `-P`, `-k`, `-u`, `-4`, `-6`, …) can precede `m` in a cluster,
-  in either order — a flag that consumes a value, such as `-j`
-  (`--jobs <n>`), does **not** cluster the same way: `-jm` is parsed as
-  `-j` given the (invalid) value `m`, not as `-j` plus `-m` (confirmed
-  empirically: git rejects it as a malformed integer, distinct from a
-  successful cluster). Even restricted to the no-argument short flags,
-  there is no finite literal-prefix deny that covers every
-  clustering — enumerating one exact-prefix deny per possible
-  preceding flag would cover only the combinations enumerated, and any
-  new flag `git fetch` adds later would silently reopen the gap. This
-  gap is specific to the short spelling; the long-form `Bash(git fetch origin
-  --m*)` deny is unaffected, since long options never cluster. Given
-  the same defense-in-depth reasoning already applied to the
-  `--upload-pack` and `--multiple` denies, `-m*` is kept for the
-  common, non-clustered case rather than removed, and this clustering
-  residual is disclosed rather than pursued into an unbounded
-  enumeration.
+  Chasing each of these with its own narrow deny (as earlier revisions
+  of this change did) means the fix is only ever as complete as the
+  flags anyone thought to test — the single `Bash(git fetch origin -*)`
+  deny instead closes the whole class, including any option a future
+  git version adds. This repository's own documented `git fetch origin`
+  usage never passes a flag (only bare or a plain refspec/branch name),
+  so the deny has no collateral cost here; an adopter that legitimately
+  needs a flag (`--prune`, `--tags`, …) sees the normal permission
+  prompt for it instead of a silent allow.
 
-  A third same-shape gap: `--recurse-submodules[=<mode>]` recurses the
-  fetch into every populated submodule using _that submodule's own_
-  configured remote, regardless of how trustworthy the superproject's
-  `origin` is (found via Codex review on
-  kurone-kito/jsonresume-types#121; verified empirically — a submodule
-  whose remote was set to a local-path `ext::` helper had that helper
-  executed by `git fetch origin --recurse-submodules=yes` against an
-  otherwise ordinary superproject `origin`). This repository has no
-  submodules today, so the precondition (a populated submodule with an
-  untrustworthy remote) does not currently hold, but the allow rule
-  does not depend on that fact holding. Unlike `--multiple`,
-  `--recurse-submodules` has **no usable shorter abbreviation** at
-  all: it collides with the sibling `--recurse-submodules-default`
-  option, so any prefix shorter than the full spelling is rejected as
-  ambiguous rather than accepted (confirmed empirically) — the
-  defense-in-depth deny, `Bash(git fetch origin --recurse-submodules*)`,
-  needs no abbreviation coverage as a result, only the same
-  flag-position residual as the other two.
+  **Two residuals remain, and neither is closable by narrowing this
+  allow rule further** — the same category as the `gh api` DELETE-verb
+  trap below, and the same standard finding 1 above was already held
+  to (kurone-kito/jsonresume-types#115):
 
-  **This deny only blocks the explicit flag, and that is a structural
-  limit, not an oversight.** Git's own default for `--recurse-submodules`
-  when the flag is _absent entirely_ is `on-demand`: a **bare**
-  `git fetch origin`, with no submodule-related flag at all, still
-  recurses into a populated submodule whenever the fetched superproject
-  update changes that submodule's recorded commit (found via a second
-  Codex review round on kurone-kito/jsonresume-types#121; verified
-  empirically — advancing the submodule's upstream and recording the
-  new commit in the superproject, then running a completely bare
-  `git fetch origin` against the superclone, invoked the submodule's
-  `ext::` remote with no flag present in the command at all). No Claude
-  Code prefix-matching rule can distinguish this from an ordinary,
-  wanted bare fetch — the command string is identical either way, and
-  the difference is _repository state_ (whether a populated submodule
-  with an untrustworthy remote exists), not anything expressible in the
-  command text. This is the same category of limit as finding 1's
-  `--upload-pack` residual over an unrestricted `ssh://` account: not
-  closable by narrowing the allow rule further, only by the same
-  precondition never holding. It does **not**, and structurally cannot,
-  depend on any of the flags or denies discussed above — the on-demand
-  path fires with none of them present. This repository has no
-  submodules, so it is accepted as low-priority per the same reasoning
-  finding 1 already established, rather than pursued further here. A
-  clone that does add an untrusted-remote submodule can disable the
-  default recursion entirely with `git config fetch.recurseSubmodules
-  false` (verified empirically to suppress it), a git-level
-  configuration choice outside anything this settings file can express
-  or enforce.
+  - **Flag position.** The deny's literal prefix requires the `-` to
+    appear immediately after `origin`; a flag placed after a refspec
+    (`git fetch origin main --upload-pack=…`) is a different literal
+    prefix and is not caught. This is the same flag-position gap
+    documented below for `git push --force*`.
+  - **Submodule recursion with no flag at all.** Git's own default for
+    `--recurse-submodules` when the option is absent entirely is
+    `on-demand`: a completely bare `git fetch origin` still recurses
+    into a populated submodule whenever the fetch changes that
+    submodule's recorded commit (verified empirically — advancing a
+    submodule's upstream and recording the new commit in the
+    superproject, then running a bare `git fetch origin`, invoked the
+    submodule's `ext::` remote with no flag present in the command at
+    all). No prefix rule can distinguish this from an ordinary, wanted
+    bare fetch: the command string is identical either way, and the
+    difference is _repository state_ — a populated submodule with an
+    untrustworthy remote — not anything expressible in the command
+    text. This repository has no submodules, so it is accepted as
+    low-priority rather than pursued further, the same disposition
+    finding 1 already established for a different residual. A clone
+    that does add an untrusted-remote submodule can disable the
+    default recursion entirely with `git config
+    fetch.recurseSubmodules false` (verified empirically to suppress
+    it) — a git-level configuration choice outside anything this
+    settings file can express or enforce.
 
   `fetch` still downloads objects and updates local remote-tracking
   refs (`refs/remotes/origin/*`); an explicit destination refspec
@@ -744,8 +679,8 @@ allow/deny split, softened as described below.
 ### What the baseline denies
 
 `git push --force` / `--force-with-lease` / `-f`, `git reset --hard`,
-`git clean -f`, `git branch -D`, `git fetch origin --upload-pack` /
-`--multiple` / `-m` / `--recurse-submodules` (kurone-kito/jsonresume-types#115;
+`git clean -f`, `git branch -D`, every flag after `git fetch origin`
+(kurone-kito/jsonresume-types#115 and kurone-kito/jsonresume-types#121;
 defense in depth for the `git fetch origin` allow, with the residual
 gaps described above), `gh repo delete`, `gh issue delete`, all three `gh api`
 DELETE-verb spellings (`-X DELETE`, `--method DELETE`,
