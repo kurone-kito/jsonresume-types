@@ -26,9 +26,13 @@
     "profile": "package-manager"
   },
   "maintainerApprovalActorPolicy": "owners-and-maintainers-only",
+  "forcedHandoff": {
+    "mode": "human-gated"
+  },
   "issueAuthoring": {
     "maxClarificationRounds": 3,
-    "authoringLabelName": "status:authoring"
+    "authoringLabelName": "status:authoring",
+    "journalIssue": "kurone-kito/jsonresume-types#124"
   },
   "issueScope": "roadmap-first",
   "orphanFirstPolicy": "none",
