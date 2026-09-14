@@ -390,8 +390,7 @@ re-investigate the same ground:
   the pinned tag, so it is not carried by the dependency pin. Ported by
   hand into `.github/workflows/idd-advisory-convergence.yml` (#106, PR
   #120), independently verified against the GitHub API before being
-  trusted -- a sibling track in this roadmap found its own cited upstream
-  commit hash was stale.
+  trusted.
 - **`mergePolicyAck`**: `"fully_autonomous_merge"`, matching `mergePolicy`
   -- recorded in `.github/idd/config.json` (#103, PR #116).
 - **`developmentBranch: "main"`**: confirmed live by the upstream hearing
@@ -422,11 +421,14 @@ re-investigate the same ground:
   remote name merely starting with `origin`, e.g. `originEvil`), and
   further investigation surfaced additional untrusted-transport flags
   beyond `--upload-pack` (`--multiple`/`-m` and `--recurse-submodules`).
-  All of the `git fetch origin` gaps were folded into one comprehensive
-  `Bash(git fetch origin -*)` deny replacing the narrower per-flag
-  denies. `.claude/settings.json`'s own `$comment` field and
-  `docs/permissions.md` remain the owning, authoritative surfaces for
-  the exact rule set -- not duplicated here.
+  Two separate fixes resulted: the `originEvil`-style remote-name gap is
+  closed by narrowing the **allow** rule itself, from `git fetch origin*`
+  to `git fetch origin *` (the same bare-inclusive shape used for `diff`,
+  not a deny addition); the flag-based gaps are covered by one
+  comprehensive **deny**, `Bash(git fetch origin -*)`, replacing the
+  narrower per-flag denies. `.claude/settings.json`'s own `$comment`
+  field and `docs/permissions.md` remain the owning, authoritative
+  surfaces for the exact rule set -- not duplicated here.
 - **`providerHealth` / `localValidationEvidence` / `providerOutage`**:
   evaluated during the v0.11.0 hearing; no repository-specific override was
   adopted for any of the three -- `.github/idd/config.json` sets none of
