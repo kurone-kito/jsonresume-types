@@ -444,45 +444,69 @@ allow/deny split, softened as described below.
   `log`, `show`, `branch --list` / `--show-current` / `-a` / `-v`,
   `worktree list`, `rev-parse`, `remote -v` / `remote show`, and
   `blame` are pure reads. `fetch` is the one deliberate exception, and
-  it is scoped to `Bash(git fetch origin*)` rather than a bare
-  `Bash(git fetch*)`: an unscoped `fetch` allow would let an argument
+  it is scoped to `Bash(git fetch origin)` + `Bash(git fetch origin *)`
+  rather than a bare `Bash(git fetch*)` or a raw `Bash(git fetch
+  origin*)` prefix: an unscoped `fetch` allow would let an argument
   supply an arbitrary transport instead of the configured `origin`
   remote — for example the `ext::` transport helper, which runs its
-  argument as a local subprocess (a documented git RCE vector). Pinning
-  the remote name as a literal prefix closes that vector: everything
-  after `origin` in a fetched command is refspec/flag context for that
-  already-configured, trusted remote, not a second URL. A
-  `--upload-pack=<program>` override is a narrower residual that
-  pinning the remote name does **not** close on its own
+  argument as a local subprocess (a documented git RCE vector) — and a
+  raw `git fetch origin*` prefix has its own, narrower version of the
+  same problem: it also matches any remote name merely _starting with_
+  `origin` (for example `originEvil`), because Claude Code's prefix
+  match has no word-boundary awareness. If such a remote is itself
+  configured to a local path or an `ext::` URL, fetching it reopens the
+  arbitrary-transport vector this rule exists to close (found via
+  Copilot review on this change's own pull request, kurone-kito/jsonresume-types#121;
+  verified empirically — configuring a local-path remote literally
+  named `originEvil` and fetching it with a malicious `--upload-pack`
+  override executed the given program locally, and the resulting
+  command string matched the old raw-prefix rule). Requiring either
+  nothing or a literal space immediately after `origin` closes both
+  gaps the same way the `diff`/`branch -v` splits below do: everything
+  after `origin` (with the space) in a fetched command is refspec/flag
+  context for that already-configured, trusted remote, not a second
+  remote name or URL.
+
+  A `--upload-pack=<program>` override is a narrower residual that
+  scoping the remote name this tightly does **not** close on its own
   (kurone-kito/jsonresume-types#115): it changes what program the
-  transport `origin` already resolves to invokes when serving the
-  request, not which remote is contacted, so on a repository whose
-  `origin` is itself a local path or an `ext::` URL, `--upload-pack`
-  still runs the given program locally even with the remote name
-  pinned. This repository's actual `origin` is a fixed
+  transport the legitimate `origin` remote already resolves to invokes
+  when serving the request, not which remote is contacted, so on a
+  repository whose `origin` is itself a local path or an `ext::` URL,
+  `--upload-pack` still runs the given program locally. Whether this is
+  exploitable depends on `origin`'s configured transport, which varies
+  by clone, not by repository: this operator's own clone uses a fixed
   `ssh://github.com/…` remote, so the override is sent to GitHub's
-  restricted SSH command handler rather than executed locally — not
-  exploitable here, though that safety is a fact about this
-  repository's configured remote, not a property the allow rule
-  itself guarantees for every adopter of this baseline. A
-  defense-in-depth deny, `Bash(git fetch origin --upload-pack*)`,
-  blocks the direct `git fetch origin --upload-pack=…` form the same
-  way the DELETE-verb denies below do for `gh api`, with two known
-  residual gaps rather than one: the same flag-position gap as those
-  denies (`git fetch origin main --upload-pack=…`, the flag placed
-  after a refspec, is a different literal prefix and is not caught),
-  and, independently, git's own option parser accepts any unambiguous
-  abbreviation of a long option — `git fetch origin --upload-pac=…`
-  (or any shorter unambiguous prefix) reaches the same local-execution
-  behavior without matching this deny's literal `--upload-pack`
-  prefix at all (confirmed empirically: an abbreviated flag proceeds
-  past option parsing to the transport step, while a genuinely unknown
-  flag is rejected immediately with `error: unknown option`). Given
-  the fixed `ssh://` origin already makes both residuals
-  non-exploitable here, they are accepted rather than pursued further.
-  `fetch` still downloads objects and updates local remote-tracking
-  refs (`refs/remotes/origin/*`), so it is not strictly read-only, but
-  it never touches the working tree, the index, or a local branch
+  restricted SSH command handler rather than executed locally; a clone
+  over `https://` (for example, the sandbox GitHub's own Copilot code
+  review runs its checkout in) is unaffected for a different reason —
+  `--upload-pack` has no effect at all under the smart-HTTP protocol
+  (confirmed empirically: git prints `warning: setting remote service
+  path not supported by protocol` and proceeds with an ordinary fetch,
+  never invoking the given program). Only a local-path or `ext::`
+  `origin` actually runs the override locally, regardless of scheme;
+  no clone of this repository known to be in current use configures
+  one, but that is a fact about configured remotes across clones, not
+  a property either the allow rule or this repository guarantees for
+  every adopter of this baseline. A defense-in-depth deny,
+  `Bash(git fetch origin --upload-pack*)`, blocks the direct
+  `git fetch origin --upload-pack=…` form the same way the DELETE-verb
+  denies below do for `gh api`, with two known residual gaps rather
+  than one: the same flag-position gap as those denies (`git fetch
+  origin main --upload-pack=…`, the flag placed after a refspec, is a
+  different literal prefix and is not caught), and, independently,
+  git's own option parser accepts any unambiguous abbreviation of a
+  long option — `git fetch origin --upload-pac=…` (or any shorter
+  unambiguous prefix) reaches the same local-execution behavior without
+  matching this deny's literal `--upload-pack` prefix at all (confirmed
+  empirically: an abbreviated flag proceeds past option parsing to the
+  transport step, while a genuinely unknown flag is rejected
+  immediately with `error: unknown option`). Given no clone of this
+  repository in current use has a locally/`ext::`-exploitable `origin`,
+  these residuals are accepted rather than pursued further. `fetch`
+  still downloads objects and updates local remote-tracking refs
+  (`refs/remotes/origin/*`), so it is not strictly read-only, but it
+  never touches the working tree, the index, or a local branch
   pointer. Mutating `git` commands (`commit`, `push`, `worktree
   add`/`remove`, branch creation) are deliberately **not** in the
   baseline; they stay behind the normal permission prompt, or a
