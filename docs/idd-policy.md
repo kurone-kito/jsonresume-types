@@ -214,8 +214,11 @@ every matching ruleset, and never exposes `bypass_actors` at all.
 its bypass actors.)
 
 `strict_required_status_checks_policy: false` means a PR that is merely
-`BEHIND` `main` (no content conflict) is mergeable without first updating to
-the latest base -- exactly the condition the E-phase branch-sync check and
+`BEHIND` `main` (no content conflict) is not required to update to the
+latest base before merge -- it lifts only that one gate, never a promise
+of mergeability on its own, since required checks, reviews, and the
+advisory-convergence gate can all still independently block the merge.
+This is exactly the condition the E-phase branch-sync check and
 F1 already gate their own `behind-no-conflict` routing on ("when branch
 protection or recorded repository policy requires an up-to-date head");
 this ruleset does not impose that requirement, so that up-to-date-head
@@ -411,14 +414,19 @@ re-investigate the same ground:
   entries (this repository's `fully_autonomous_merge` policy makes the
   upstream default-off denial inapplicable), and a rewritten `$comment`
   explaining that override. A follow-up (#115, PR #121) then narrowed
-  three upstream-inherited Bash-prefix-matching gaps (`git diff*` vs.
-  `difftool --extcmd`, `git branch -v*` vs. a `-D` bypass, and
-  `git fetch origin*` vs. several untrusted-transport flags) plus a
-  fourth found during that PR's own review, replacing per-flag denies
-  with one comprehensive `Bash(git fetch origin -*)` deny.
-  `.claude/settings.json`'s own `$comment` field and `docs/permissions.md`
-  remain the owning, authoritative surfaces for the exact rule set -- not
-  duplicated here.
+  three upstream-inherited Bash-prefix-matching gaps named in #115
+  (`git diff*` vs. `difftool --extcmd`; `git branch -v*` vs. a `-D`
+  bypass; `git fetch origin*` vs. `--upload-pack`). While fixing the
+  third of those, PR #121's own review found a fourth, previously
+  unnamed gap (`git fetch origin*` also prefix-matching an untrusted
+  remote name merely starting with `origin`, e.g. `originEvil`), and
+  further investigation surfaced additional untrusted-transport flags
+  beyond `--upload-pack` (`--multiple`/`-m` and `--recurse-submodules`).
+  All of the `git fetch origin` gaps were folded into one comprehensive
+  `Bash(git fetch origin -*)` deny replacing the narrower per-flag
+  denies. `.claude/settings.json`'s own `$comment` field and
+  `docs/permissions.md` remain the owning, authoritative surfaces for
+  the exact rule set -- not duplicated here.
 - **`providerHealth` / `localValidationEvidence` / `providerOutage`**:
   evaluated during the v0.11.0 hearing; no repository-specific override was
   adopted for any of the three -- `.github/idd/config.json` sets none of
