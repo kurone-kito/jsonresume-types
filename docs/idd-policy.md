@@ -154,10 +154,19 @@ mistaken for a broken hook.
 **Status**: registered. `idd-advisory-convergence` is a required status check
 on the default branch, enforced via GitHub's Rulesets API rather than classic
 branch protection -- the `main` ruleset (id `20745987`) pins the check via
-`integration_id: 15368`, with `strict_required_status_checks_policy: true`
+`integration_id: 15368`, with `strict_required_status_checks_policy: false`
 and `bypass_actors: []` (the `enforce_admins: true` equivalent -- the check
 applies to admin merges too, including a trusted merge-capable session's
-own). Verify the pinned check and its strict-policy flag with:
+own). The same ruleset's `required_status_checks` array also lists three
+build-matrix jobs, one exact context per Node.js version --
+`The build process (22.x, ubuntu-latest, bash)`,
+`The build process (24.x, ubuntu-latest, bash)`, and
+`The build process (26.x, ubuntu-latest, bash)` -- same
+`integration_id: 15368`, alongside `idd-advisory-convergence`. This is
+expected under the `matches` inclusion-check semantics documented below,
+but recorded here so a future reader doesn't assume `idd-advisory-convergence`
+is the *only* required check on this ruleset. Verify the pinned check and
+its strict-policy flag with:
 
 ```sh
 gh api repos/kurone-kito/jsonresume-types/rules/branches/main \
@@ -167,7 +176,7 @@ gh api repos/kurone-kito/jsonresume-types/rules/branches/main \
   15368)), strict: .strict_required_status_checks_policy}'
 ```
 
-Confirm the response is `{"matches": true, "strict": true}`. This endpoint
+Confirm the response is `{"matches": true, "strict": false}`. This endpoint
 returns every active rule from **every** ruleset that matches `main`, each
 tagged with its own `ruleset_id` -- filtering on `.ruleset_id == 20745987`
 ties the confirmed rule specifically to this ruleset, rather than letting a
@@ -204,6 +213,24 @@ every matching ruleset, and never exposes `bypass_actors` at all.
 `rulesets/{id}` reports this **one** ruleset's own configuration, including
 its bypass actors.)
 
+`strict_required_status_checks_policy: false` means a PR that is merely
+`BEHIND` `main` (no content conflict) is not required to update to the
+latest base before merge -- it lifts only that one gate, never a promise
+of mergeability on its own, since required checks, reviews, and the
+advisory-convergence gate can all still independently block the merge.
+This is exactly the condition the E-phase branch-sync check and
+F1 already gate their own `behind-no-conflict` routing on ("when branch
+protection or recorded repository policy requires an up-to-date head");
+this ruleset does not impose that requirement, so that up-to-date-head
+routing condition is not triggered under normal, successfully-read
+ruleset operation for this repository. This does not retire the
+fail-closed exception both checks also gate on: an unreadable or
+ambiguous protection/ruleset read still routes through the same
+sync-required path regardless of this ruleset's actual configured value.
+Live-reverified during the
+v0.11.0 re-import (roadmap #102, #110); see "v0.11.0 Re-import Notes"
+below.
+
 Two behaviors to expect, both by design:
 
 - The check **shows as failing** until the advisory reviewer reviews the
@@ -239,9 +266,16 @@ never claimed under, with no escape path.
 
 ## Known `idd-doctor` Warnings
 
-`idd-doctor --strict` reports these findings as intentional, explained
-divergences rather than unresolved defects. Most trace to the #37 import
-verification pass; one was added later and is noted individually below.
+`idd-doctor --strict` has reported the findings below as intentional,
+explained divergences rather than unresolved defects. Both trace to the
+import verification pass, issue #37. A third finding, added later after
+a mid-session ruleset migration, was resolved and relocated to "v0.11.0
+Re-import Notes" below -- see that section for its resolution evidence.
+The v0.11.0 re-import verification pass (#110) re-ran `idd-doctor --strict`
+and found **zero** warnings (see "v0.11.0 Re-import Notes" below for the
+reproduced output); the two bullets below did not fire in that run either,
+but remain recorded as still-live, currently-quiet mechanisms rather than
+resolved findings -- see each bullet's own current-run note.
 
 - **`post-merge cleanup backlog`** -- predates both the IDD import and the
   `post-merge-cleanup.yml` adoption below. The check scans a rolling
@@ -259,23 +293,24 @@ verification pass; one was added later and is noted individually below.
   pre-existing backlog -- someone would still need to run
   `idd-audit-pr-cleanup --pr <N> --apply --skip-claim-check` against each
   listed PR to close that out (re-run `idd-doctor --strict` for the current
-  count and example PRs, rather than trusting a number recorded here).
+  count and example PRs, rather than trusting a number recorded here). The
+  v0.11.0 re-import verification pass (#110) re-ran the check -- the
+  rolling 14-day window held 10 merged PRs on IDD branch patterns at that
+  time (non-IDD merges in the same calendar window, such as Dependabot
+  PRs, are excluded from this count by design) -- and found zero PRs
+  currently missing evidence -- a transient zero-count consistent with
+  the "shifts over time" behavior above, not a change to the mechanism
+  itself.
 - **`release-tag drift`** -- out of scope for the IDD import. Cutting a new
   release is roadmap #46's concern (`Roadmap: restore the release pipeline
   and the package's quality gates`), not #38's. This document does not track
-  release cadence.
-- **`branch protection not readable for kurone-kito/jsonresume-types:main`**
-  -- added after the mid-session migration of `main`'s branch protection
-  from classic protection to a GitHub ruleset (see #75 for the full
-  writeup). `idd-doctor` v0.6.0's branch-protection check reads the classic
-  `GET /repos/{owner}/{repo}/branches/main/protection` endpoint, which now
-  404s (`"Branch not protected"`) because enforcement moved to the ruleset;
-  `idd-doctor` v0.6.0 does not yet read rulesets for this check. The
-  ruleset itself is enforced and readable via the rulesets API -- this
-  bullet is narrowly about why `idd-doctor`'s own check reads stale, not
-  about the ruleset's configuration. The "Advisory-Convergence Required
-  Check" section above now documents verification via the Rulesets API
-  (#75) instead of that now-404ing classic endpoint.
+  release cadence. This check compares `HEAD` against the latest
+  **reachable** git tag only (`git describe --tags --abbrev=0`; commit
+  count and tag-commit age), never `package.json`'s own `"version"`
+  field -- it warns past 100 commits or 45 days since the tag.
+  At v0.11.0 re-import verification time (#110), `HEAD` was 63 commits and
+  about 32 days past the latest tag (`v0.6.0`), both under threshold, so no
+  drift was observed -- also a transient zero-count, not a change to scope.
 
 ## v0.6.0 Re-import Notes
 
@@ -335,6 +370,154 @@ pass does not need to re-investigate the same ground:
   present* required check's producer identity, while this one trusts a
   `404` read itself as genuinely-empty protection/ruleset configuration
   rather than a masked permission failure.
+
+## v0.11.0 Re-import Notes
+
+Recorded during the `idd-skill` v0.11.0 re-import -- roadmap #102, tracks
+issue #103 through issue #109 inclusive, closed out by this
+reconciliation issue #110 whose own acceptance scope is this policy
+document only. The independent helper-wiring track #122 is already
+applied to the assembled state below, but is neither blocked by nor
+blocking #110. Recorded so a future pass does not need to
+re-investigate the same ground:
+
+- **Peeled release pin**: `package.json` pins `@kurone-kito/idd-skill` to
+  `github:kurone-kito/idd-skill#1f90787ebf4021673ce6e5eb69741df331fd2037`
+  -- the commit the `v0.11.0` tag resolves to (#103, PR #116).
+- **Post-release `main` fix, ported manually**: upstream commit
+  `adad8ae43c5a1b6fc3a100ce384c8a84a8d5139d` ("fix(ci): grant
+  pull-requests:write to advisory self-waiver job") lands 13 commits after
+  the pinned tag, so it is not carried by the dependency pin. Ported by
+  hand into `.github/workflows/idd-advisory-convergence.yml` (#106, PR
+  #120), independently verified against the GitHub API before being
+  trusted.
+- **`mergePolicyAck`**: `"fully_autonomous_merge"`, matching `mergePolicy`
+  -- recorded in `.github/idd/config.json` (#103, PR #116).
+- **`developmentBranch: "main"`**: confirmed live by the upstream hearing
+  wizard (roadmap #102) and recorded in `.github/idd/config.json` (#103,
+  PR #116).
+- **Issue-mediated bootstrap choice**: the hearing wizard confirmed an
+  issue-mediated re-import over a single blind bulk overwrite; roadmap
+  #102 itself, decomposed into tracks #103-#109 (independent except
+  #106's dependency on #103) plus this closing track (#110) and the later
+  #122 helper-wiring gap-fix, is the concrete instance of that choice.
+- **Confirmed helper/runtime/approval policies** (reconfirmed unchanged
+  from the v0.6.0-era values already recorded above in this document):
+  `helperRuntime.profile: "package-manager"`,
+  `maintainerApprovalActorPolicy: "owners-and-maintainers-only"`,
+  `reviewPolicy: "copilot-advisory"`.
+- **Claude Code permission baseline** (#109, PR #114; narrowed by #115, PR
+  #121): `.claude/settings.json` was added, based on upstream v0.11.0's
+  opt-in template, with two authorized deltas over upstream -- allowing
+  `Bash(gh pr merge*)` and dropping two `idd-merge-execute.mjs` deny
+  entries (this repository's `fully_autonomous_merge` policy makes the
+  upstream default-off denial inapplicable), and a rewritten `$comment`
+  explaining that override. A follow-up (#115, PR #121) then narrowed
+  three upstream-inherited Bash-prefix-matching gaps named in #115
+  (`git diff*` vs. `difftool --extcmd`; `git branch -v*` vs. a `-D`
+  bypass; `git fetch origin*` vs. `--upload-pack`). While fixing the
+  third of those, PR #121's own review found a fourth, previously
+  unnamed gap (`git fetch origin*` also prefix-matching an untrusted
+  remote name merely starting with `origin`, e.g. `originEvil`), and
+  further investigation surfaced additional untrusted-transport flags
+  beyond `--upload-pack` (`--multiple`/`-m` and `--recurse-submodules`).
+  Two separate fixes resulted: the `originEvil`-style remote-name gap is
+  closed by narrowing the **allow** rule itself, from `git fetch origin*`
+  to `git fetch origin *` (the same bare-inclusive shape used for `diff`,
+  not a deny addition); the flag-based gaps are covered by one
+  comprehensive **deny**, `Bash(git fetch origin -*)`, replacing the
+  narrower per-flag denies. `.claude/settings.json`'s own `$comment`
+  field and `docs/permissions.md` remain the owning, authoritative
+  surfaces for the exact rule set -- not duplicated here.
+- **`providerHealth` / `localValidationEvidence` / `providerOutage`**:
+  evaluated during the v0.11.0 hearing; no repository-specific override was
+  adopted for any of the three -- `.github/idd/config.json` sets none of
+  `providerHealth.*`, `localValidationEvidence.*`, or `providerOutage.*`,
+  so all three continue to operate on the distributed defaults (see
+  `docs/policy-constants.md`'s "Provider Health Defaults", "Provider
+  Outage Declaration Defaults", and "Local Validation Evidence Defaults"
+  tables).
+- **Live ruleset evidence**: see the corrected "Advisory-Convergence
+  Required Check" section above (`strict_required_status_checks_policy:
+  false`, `bypass_actors: []`, `current_user_can_bypass: "never"`) -- not
+  repeated here.
+- **`idd-doctor --strict` reproduction** (2026-09-14T16:08Z, against `main`
+  at commit `7c686dee6ead8520578a80b5c0dc7c48b1dff609`, the merge-base
+  after #103-#109 were assembled and before this issue's own commits):
+
+  ```text
+  PASS  required instruction and reference files are present
+  PASS  profile artifacts are present
+  PASS  no unresolved {{...}} placeholders in IDD-managed files
+  PASS  marker prefix is valid and consistent (jsonresume-types)
+  PASS  project commands table has non-empty command values
+  PASS  merge policy signal found
+  PASS  review policy signal found
+  PASS  .github/idd/config.json declares helper runtime profile "package-manager"
+  PASS  .github/idd/config.json validates against policy.schema.json
+  PASS  AGENTS.md references docs/idd-workflow.md
+  PASS  CLAUDE.md references docs/idd-workflow.md
+  PASS  GEMINI.md references docs/idd-workflow.md
+  PASS  template version signal found in .github/idd/config.json
+  PASS  required status checks configured on main (4, strict=false)
+  PASS  required pull request review policy is configured
+
+  result: passed (0 warning(s))
+  ```
+
+  The `required status checks configured on main (4, strict=false)` line
+  is also the resolution evidence for the `branch protection not readable`
+  finding this document previously carried under "Known `idd-doctor`
+  Warnings" (#75): the installed `idd-doctor` still queries both
+  governance surfaces (the Rulesets endpoint and the classic
+  branch-protection endpoint, which still 404s), but now trusts that
+  classic 404 as genuinely-empty protection rather than an unreadable
+  failure -- the `ciGate.trustEmptyProtectionReads: true` opt-in already
+  recorded under "v0.6.0 Re-import Notes" above -- so the check no longer
+  reports "not readable" once the Rulesets read alone succeeds, and it is
+  that successful Rulesets read which powers the "required status
+  checks" finding itself. Its bullet has accordingly been removed from
+  that section. The other two previously-recorded warnings (post-merge
+  cleanup backlog, release-tag drift) also did not fire in this run, but
+  remain recorded there as still-live, currently-quiet
+  mechanisms rather than resolved findings -- see that section for the
+  current-run detail on each.
+- **Named-gap import method and dual-mirror invariant**: the re-import
+  used upstream's named-gap method -- importing named upstream files and
+  sections individually against this repository's own deliberate
+  customizations, rather than a blind directory overwrite, so recorded
+  local decisions (ruleset-based policy fields, the `package-manager`
+  helper profile, Actions v7/pnpm tooling, shared lint-config imports)
+  survive un-reverted. Two skill bundles are now installed as
+  byte-identical mirror pairs under `.claude/skills/` and
+  `.github/skills/` -- `issue-authoring` (see "Issue-Authoring Companion"
+  above) and, new in this cycle, `idd-spec-audit` (#108, PR #118) --
+  re-verified byte-identical with `diff -r` during this reconciliation.
+  Any future re-import must update **both** copies of **every** installed
+  mirror bundle together, and must never silently overwrite a recorded
+  local customization (this document's own record of them) without an
+  explicit reconciliation pass such as this one.
+- **Config field cross-check** against `.github/idd/config.json`, scoped
+  to the fields this hearing touched or that this document's existing
+  sections describe (not every key in the file -- several predate this
+  cycle entirely, e.g. `issueScope`/`orphanFirstPolicy`/
+  `workshop.exampleRepository`, added at initial import and unchanged
+  since). `iddVersion: "0.11.0"` is recorded here for the first time as an
+  explicit field:value pair (previously only implied by this section's own
+  heading and the peeled-pin bullet above); `mergePolicyAck` and
+  `developmentBranch` are newly recorded above, as field:value pairs, in
+  this same section. `markerPrefix` was already correctly reflected by
+  this document's existing sections (e.g. "Issue-Authoring Companion"'s
+  prefix-first rule). `trustedMarkerActors` (`kurone-kito`) is not named by
+  value anywhere else in this document, only by field name in the shared
+  `.github/instructions/*.md` files -- recorded here for the first time as
+  a value. `advisoryBotLogins` (`coderabbitai[bot]`) is likewise not named
+  by value elsewhere in this document, only the field's general concept
+  and the unrelated `exemptBotAuthoredPrs`/`convergenceScope` fields
+  appear above (in "Advisory-Wait Bot Exemption"). The concept behind
+  `autopilotSuitability.floor` (not this exact key path) is documented in
+  the shared docs bundle (`docs/customization.md`,
+  `docs/idd-helper-scripts.md`). No divergence found in any of them.
 
 ## IDD Labels
 
