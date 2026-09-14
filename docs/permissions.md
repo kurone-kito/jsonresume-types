@@ -467,10 +467,11 @@ allow/deny split, softened as described below.
   given program locally, and the resulting command string matched the
   old raw-prefix rule). Requiring a literal space immediately after
   `origin` (or nothing at all, per the bare-command rule above) closes
-  both gaps the same way the `diff`/`branch -v` fix below does:
-  everything after `origin` (with the space) in a fetched command is
-  refspec/flag context for that already-configured, trusted remote, not
-  a second remote name or URL.
+  both gaps the same way the `diff`/`branch -v` fix below does: absent
+  the `--multiple`/`-m` exception documented next, everything after
+  `origin` (with the space) in a fetched command is refspec/flag
+  context for that already-configured, trusted remote, not a second
+  remote name or URL.
 
   A `--upload-pack=<program>` override is a narrower residual that
   scoping the remote name this tightly does **not** close on its own
@@ -571,10 +572,15 @@ allow/deny split, softened as described below.
   `-p` (`--prune`) with `-m` and reaches the same `--multiple`
   behavior, but the command starts with `-p`, not `-m`, so neither
   `Bash(git fetch origin --m*)` nor `Bash(git fetch origin -m*)`
-  matches. Any of `git fetch`'s roughly dozen other single-letter
-  flags (`-v`, `-q`, `-a`, `-f`, `-t`, `-n`, `-j`, `-p`, `-P`, `-k`,
-  `-u`, `-4`, `-6`, …) can precede `m` in a cluster, in either order,
-  so there is no finite literal-prefix deny that covers every
+  matches. Any of `git fetch`'s several other single-letter flags that
+  take no argument of their own (`-v`, `-q`, `-a`, `-f`, `-t`, `-n`,
+  `-p`, `-P`, `-k`, `-u`, `-4`, `-6`, …) can precede `m` in a cluster,
+  in either order — a flag that consumes a value, such as `-j`
+  (`--jobs <n>`), does **not** cluster the same way: `-jm` is parsed as
+  `-j` given the (invalid) value `m`, not as `-j` plus `-m` (confirmed
+  empirically: git rejects it as a malformed integer, distinct from a
+  successful cluster). Even restricted to the no-argument short flags,
+  there is no finite literal-prefix deny that covers every
   clustering — enumerating one exact-prefix deny per possible
   preceding flag would cover only the combinations enumerated, and any
   new flag `git fetch` adds later would silently reopen the gap. This
