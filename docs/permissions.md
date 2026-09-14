@@ -488,28 +488,34 @@ allow/deny split, softened as described below.
   `--upload-pack` has no effect at all under the smart-HTTP protocol
   (confirmed empirically: git prints `warning: setting remote service
   path not supported by protocol` and proceeds with an ordinary fetch,
-  never invoking the given program). A local-path or `ext::` `origin`
-  runs the override locally; an `ssh://` `origin` is safe only when the
-  account it connects to is itself restricted to git operations, the
-  way GitHub's is — an ordinary shell account is not, and runs the
-  override as a remote command over that same SSH connection instead
-  (confirmed empirically with a `GIT_SSH_COMMAND` shim standing in for
-  the SSH client: git invokes it with the `--upload-pack` value as a
-  literal argument — `sh -c "…" '<repo-path>'` — which an ordinary
-  SSH server would execute as the remote command, not something
-  git-shell-restricted GitHub does). No clone of this repository known
-  to be in current use configures a local-path/`ext::` origin or an
-  unrestricted `ssh://` account, but that is a fact about configured
-  remotes and the accounts they connect to across clones, not a
-  property either the allow rule or this repository guarantees for
-  every adopter of this baseline. A defense-in-depth deny,
-  `Bash(git fetch origin --upload-pack*)`, blocks the direct
-  `git fetch origin --upload-pack=…` form the same way the DELETE-verb
-  denies below do for `gh api`, with (at least) two known residual gaps
-  specific to this rule, on top of the general quoting/splitting
-  limitation Claude Code's own documentation describes for every
-  literal-text Bash rule (for example `git 'fetch' origin
-  --upload-pack=…` — a different literal string, unrelated to
+  never invoking the given program). An `ext::` `origin` is unaffected
+  by `--upload-pack` for the same reason, not the one this paragraph
+  opened with: fetching an `ext::` URL at all already runs _its own_
+  configured command regardless of any override (that is the base
+  `ext::` risk this rule's remote-name pinning addresses), but
+  `--upload-pack` specifically has no effect on top of it — confirmed
+  empirically the same way as `https://`, same warning, no second
+  invocation. A local-path `origin` does run the override locally. An
+  `ssh://` `origin` is safe only when the account it connects to is
+  itself restricted to git operations, the way GitHub's is — an
+  ordinary shell account is not, and runs the override as a remote
+  command over that same SSH connection instead (confirmed empirically
+  with a `GIT_SSH_COMMAND` shim standing in for the SSH client: git
+  invokes it with the `--upload-pack` value as a literal argument —
+  `sh -c "…" '<repo-path>'` — which an ordinary SSH server would
+  execute as the remote command, not something git-shell-restricted
+  GitHub does). No clone of this repository known to be in current use
+  configures a local-path origin or an unrestricted `ssh://` account,
+  but that is a fact about configured remotes and the accounts they
+  connect to across clones, not a property either the allow rule or
+  this repository guarantees for every adopter of this baseline. A
+  defense-in-depth deny, `Bash(git fetch origin --upload-pack*)`,
+  blocks the direct `git fetch origin --upload-pack=…` form the same
+  way the DELETE-verb denies below do for `gh api`, with (at least) two
+  known residual gaps specific to this rule, on top of the general
+  quoting/splitting limitation Claude Code's own documentation
+  describes for every literal-text Bash rule (for example `git 'fetch'
+  origin --upload-pack=…` — a different literal string, unrelated to
   `--upload-pack` itself, that this deny and every other rule in this
   file share the same exposure to): the same flag-position gap as
   those denies (`git fetch origin main
@@ -522,13 +528,40 @@ allow/deny split, softened as described below.
   an abbreviated flag proceeds past option parsing to the transport
   step, while a genuinely unknown flag is rejected immediately with
   `error: unknown option`). Given no clone of this repository in
-  current use has a locally/`ext::`-exploitable `origin` or an `origin`
-  backed by an unrestricted `ssh://` account, these residuals are
-  accepted rather than pursued further. `fetch`
-  still downloads objects and updates local remote-tracking refs
-  (`refs/remotes/origin/*`), so it is not strictly read-only, but it
-  never touches the working tree, the index, or a local branch
-  pointer. Mutating `git` commands (`commit`, `push`, `worktree
+  current use has a locally-exploitable `origin` or an `origin` backed
+  by an unrestricted `ssh://` account, these residuals are accepted
+  rather than pursued further.
+
+  Separately, `--multiple`/`-m` turns every remaining positional
+  argument into an additional remote or remote-group name instead of
+  refspec context, so `git fetch origin --multiple <name>` fetches
+  from `<name>` too — matching this rule regardless of what `<name>`
+  is, defeating the origin-only scoping this rule exists to provide
+  (found via Codex review on kurone-kito/jsonresume-types#121; verified
+  empirically — a pre-configured remote named `evil` pointing at a
+  local-path `ext::` helper was fetched and executed the helper via
+  `git fetch origin --multiple evil`, and a _raw_, not-pre-configured
+  URL given directly to `--multiple` does **not** work the same way,
+  failing with `fatal: no such remote or remote group:` — `--multiple`
+  operands are resolved as configured remote/group names, not passed
+  through as URLs). Reaching this still requires a remote already
+  configured under some name (the same `git remote add` precondition
+  as the substring gap above; `git remote add` is not itself
+  allowlisted here), so it is not a fully standalone exploit, but it
+  bypasses the origin-only intent for _any_ pre-configured remote, not
+  only origin-prefixed ones. Two defense-in-depth denies,
+  `Bash(git fetch origin --multiple*)` and `Bash(git fetch origin -m*)`,
+  block the direct forms, with the same flag-position residual as the
+  `--upload-pack` deny above (`git fetch origin main --multiple
+  evil` is a different literal prefix and is not caught).
+
+  `fetch` still downloads objects and updates local remote-tracking
+  refs (`refs/remotes/origin/*`); an explicit destination refspec
+  (`git fetch origin main:refs/heads/release`) can also create or
+  update a local branch ref directly (confirmed empirically), so
+  `fetch` is not strictly read-only and not strictly scoped to
+  remote-tracking refs either, but it never touches the working tree
+  or the index. Mutating `git` commands (`commit`, `push`, `worktree
   add`/`remove`, branch creation) are deliberately **not** in the
   baseline; they stay behind the normal permission prompt, or a
   session may layer them into its own `.claude/settings.local.json`.
@@ -626,11 +659,14 @@ allow/deny split, softened as described below.
 ### What the baseline denies
 
 `git push --force` / `--force-with-lease` / `-f`, `git reset --hard`,
-`git clean -f`, `git branch -D`, `gh repo delete`, `gh issue delete`,
-all three `gh api` DELETE-verb spellings (`-X DELETE`, `--method
-DELETE`, `--method=DELETE`, kept as defense in depth even though `gh
-api` itself is not allowlisted — see the trap below), and — template
-counterpart only —
+`git clean -f`, `git branch -D`, `git fetch origin --upload-pack` /
+`--multiple` / `-m` (kurone-kito/jsonresume-types#115; defense in depth
+for the `git fetch origin` allow, with the residual gaps described
+above), `gh repo delete`, `gh issue delete`, all three `gh api`
+DELETE-verb spellings (`-X DELETE`, `--method DELETE`,
+`--method=DELETE`, kept as defense in depth even though `gh api` itself
+is not allowlisted — see the trap below), and — template counterpart
+only —
 `node scripts/idd-merge-execute.mjs` / `node bin/idd-merge-execute.mjs`
 as a literal invocation.
 
