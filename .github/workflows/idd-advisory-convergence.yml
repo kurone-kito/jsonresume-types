@@ -119,6 +119,11 @@ jobs:
         run: pnpm install --frozen-lockfile
       - env:
           GH_TOKEN: ${{ github.token }}
+          # gh reads whichever of these two matches its resolved host
+          # (`gh help environment`), so setting both is inert on
+          # github.com and lets this same step authenticate on a
+          # self-hosted GHES host too.
+          GH_ENTERPRISE_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         name: Run the advisory-convergence check
         run: pnpm run idd:advisory-convergence --pr "$PR_NUMBER" --assert
@@ -190,6 +195,16 @@ jobs:
         # allowlisted path is still detected.
         env:
           GH_TOKEN: ${{ github.token }}
+          # gh reads whichever of these two matches its resolved host
+          # (`gh help environment`), so setting both is inert on
+          # github.com and lets this same step authenticate on a
+          # self-hosted GHES host too. `gh api` itself still resolves
+          # only to github.com/api.github.com unless GH_HOST or an
+          # equivalent --hostname is also set -- a pre-existing gap in
+          # the upstream template this step is ported from, not
+          # introduced here; this repository runs on github.com, where
+          # it has no effect.
+          GH_ENTERPRISE_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           ALLOWLIST=(
@@ -236,7 +251,19 @@ jobs:
         id: post-waiver
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_ENTERPRISE_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+        # Invoked via `pnpm exec` (the raw bin), not `pnpm run idd:*`,
+        # unlike every other step in this file: this step's stdout is
+        # piped into `tee` and then `JSON.parse`d below, and `pnpm run`
+        # can write its own script-invocation banner to stdout ahead of
+        # the wrapped command's own output (observed Copilot review,
+        # PR #106) -- `pnpm exec` execs the binary directly with no
+        # wrapper banner, removing that risk category outright rather
+        # than relying on a specific pnpm version's reporter behavior.
+        # This also matches the v0.11.0 template's own invocation for
+        # this exact step.
+        #
         # Every profile branch below pipes its own invocation through the
         # same `tee`, so the common post-processing after it (reading
         # `applied`/`commentId`/`bodyDigest` back out of the CLI's own JSON
@@ -247,7 +274,7 @@ jobs:
         # body, taken only from the create-comment API response for this
         # exact POST.
         run: |
-          pnpm run idd:external-check-waiver --pr "$PR_NUMBER" --check idd-advisory-convergence --reason self-referential-bootstrap-auto --run-id "$GITHUB_RUN_ID" --auto-bootstrap --apply --yes | tee /tmp/idd-waiver-report.json
+          pnpm exec idd-external-check-waiver --pr "$PR_NUMBER" --check idd-advisory-convergence --reason self-referential-bootstrap-auto --run-id "$GITHUB_RUN_ID" --auto-bootstrap --apply --yes | tee /tmp/idd-waiver-report.json
           APPLIED=$(node -e '
             try {
               const report = JSON.parse(require("fs").readFileSync("/tmp/idd-waiver-report.json", "utf8"));

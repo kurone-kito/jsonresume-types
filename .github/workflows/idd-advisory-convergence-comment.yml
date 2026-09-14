@@ -63,9 +63,21 @@
 #
 # This repository's confirmed helperRuntime.profile is package-manager
 # (fixed), so -- matching idd-advisory-convergence.yml's own established
-# shape -- this file hardcodes pnpm via dedicated setup actions and
-# `pnpm run idd:*` invocations rather than doing generic
-# helperRuntime.profile/package-manager runtime detection.
+# shape -- this file hardcodes pnpm via dedicated setup actions rather
+# than doing generic helperRuntime.profile/package-manager runtime
+# detection. Unlike that sibling file, every invocation here uses
+# `pnpm exec idd-<name>` (the raw bin) rather than `pnpm run idd:<name>`:
+# this job's checkout pins `ref: main` (the trusted copy) for every
+# trigger, and a `pnpm run` script alias newly introduced by the same
+# change that adds this workflow file exists only on the unmerged PR
+# branch until that PR merges, so `pnpm run idd:<new-name>` fails
+# against main's checkout with `ERR_PNPM_NO_SCRIPT` (observed live on
+# PR #106's own first push, Copilot review). The underlying bins ship
+# with the already-installed `@kurone-kito/idd-skill` dependency
+# regardless of this repository's own package.json script aliases, so
+# `pnpm exec` works from `main` immediately; every invocation below uses
+# this form uniformly, including the one whose alias already predates
+# this file.
 #
 # Debounce: a burst of IDD-originated comments can fire
 # `idd:rerun-advisory-convergence --apply` once per comment, exhausting
@@ -119,6 +131,11 @@ permissions:
   issues: read
   pull-requests: read
   actions: write
+  # idd:rerun-advisory-convergence enumerates the current HEAD's
+  # existing check-runs via the commit check-runs API before deciding
+  # what to rerun; that endpoint is gated under the Checks permission
+  # category, distinct from Actions (Copilot review, PR #106).
+  checks: read
 defaults:
   run:
     shell: bash
@@ -169,7 +186,21 @@ jobs:
           # conditions below, which OR in `pull_request_review` explicitly
           # rather than relying on content classification.
           COMMENT_BODY: ${{ github.event.review.body || github.event.comment.body }}
-        run: pnpm run idd:review-comment-origin
+        # `pnpm exec` (the raw bin), not `pnpm run idd:*`: this step's
+        # checkout above pins `ref: main` (the trusted copy), but this
+        # invocation's own package.json script alias -- new in the same
+        # change that adds this file -- exists only on the unmerged PR
+        # branch until this PR merges, so `pnpm run idd:review-comment-
+        # origin` 403-free but still fails with `ERR_PNPM_NO_SCRIPT`
+        # against main's checkout (observed live on PR #106's own first
+        # push). The underlying bin ships with the already-installed
+        # `@kurone-kito/idd-skill` dependency regardless, so `pnpm exec`
+        # works from main immediately. All three invocations in this
+        # file use this form for the same reason and for consistency,
+        # unlike idd-advisory-convergence.yml's `pnpm run idd:*` steps,
+        # whose script aliases all already existed on `main` before this
+        # change.
+        run: pnpm exec idd-review-comment-origin
       - name: Check for newer qualifying event
         id: debounce
         # `pull_request_review` deliberately excluded -- see the module
@@ -185,6 +216,10 @@ jobs:
         if: steps.origin.outputs.idd_originated == 'true' && github.event_name != 'pull_request_review'
         env:
           GH_TOKEN: ${{ github.token }}
+          # gh reads whichever of these two matches its resolved host,
+          # so setting both is inert on github.com and lets this same
+          # step authenticate on a self-hosted GHES host too.
+          GH_ENTERPRISE_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
           # Both pull_request_review_comment and issue_comment carry the
           # triggering comment's own timestamps at github.event.comment.
@@ -196,7 +231,9 @@ jobs:
           # equals created_at for a never-edited comment, so this is safe
           # for the created-event case too.
           TRIGGERED_AT: ${{ github.event.comment.updated_at || github.event.comment.created_at }}
-        run: pnpm run idd:advisory-comment-debounce --pr "$PR_NUMBER" --triggered-at "$TRIGGERED_AT"
+        # `pnpm exec`, not `pnpm run idd:*` -- see "Classify review
+        # comment" above for why.
+        run: pnpm exec idd-advisory-comment-debounce --pr "$PR_NUMBER" --triggered-at "$TRIGGERED_AT"
       - name: Rerun required HEAD check
         # A review submission always proceeds once this job itself runs,
         # ignoring the debounce step's output entirely (module header
@@ -215,6 +252,10 @@ jobs:
         if: github.event_name == 'pull_request_review' || (success() && steps.origin.outputs.idd_originated == 'true' && steps.debounce.outputs.skip != 'true')
         env:
           GH_TOKEN: ${{ github.token }}
+          # gh reads whichever of these two matches its resolved host,
+          # so setting both is inert on github.com and lets this same
+          # step authenticate on a self-hosted GHES host too.
+          GH_ENTERPRISE_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
           # A review submission reruns unconditionally (module header
           # above) when this job itself runs, including when the gate is
@@ -231,5 +272,8 @@ jobs:
             exit 1
           fi
           # shellcheck disable=SC2086 # REFRESH_FLAG is a single trusted
-          # word ("--refresh-latest" or empty); see env: above.
-          pnpm run idd:rerun-advisory-convergence --pr "$PR_NUMBER" $REFRESH_FLAG --apply
+          # word ("--refresh-latest" or empty); see env: above. `pnpm
+          # exec`, not `pnpm run idd:*` -- matching the other two
+          # invocations in this file for consistency, even though this
+          # one script alias already exists on `main` today.
+          pnpm exec idd-rerun-advisory-convergence --pr "$PR_NUMBER" $REFRESH_FLAG --apply
