@@ -563,6 +563,29 @@ allow/deny split, softened as described below.
   empirically) with no broader collateral than `--multiple*` itself
   would have had.
 
+  **The short form `-m` has one more residual `--m*` does not share:
+  option clustering.** Git's short-option parser accepts several
+  single-letter flags bundled behind one dash — `git fetch origin -pm
+  evil` (found via Copilot review on
+  kurone-kito/jsonresume-types#121; verified empirically) clusters
+  `-p` (`--prune`) with `-m` and reaches the same `--multiple`
+  behavior, but the command starts with `-p`, not `-m`, so neither
+  `Bash(git fetch origin --m*)` nor `Bash(git fetch origin -m*)`
+  matches. Any of `git fetch`'s roughly dozen other single-letter
+  flags (`-v`, `-q`, `-a`, `-f`, `-t`, `-n`, `-j`, `-p`, `-P`, `-k`,
+  `-u`, `-4`, `-6`, …) can precede `m` in a cluster, in either order,
+  so there is no finite literal-prefix deny that covers every
+  clustering — enumerating one exact-prefix deny per possible
+  preceding flag would cover only the combinations enumerated, and any
+  new flag `git fetch` adds later would silently reopen the gap. This
+  gap is specific to the short spelling; the long-form `Bash(git fetch origin
+  --m*)` deny is unaffected, since long options never cluster. Given
+  the same defense-in-depth reasoning already applied to the
+  `--upload-pack` and `--multiple` denies, `-m*` is kept for the
+  common, non-clustered case rather than removed, and this clustering
+  residual is disclosed rather than pursued into an unbounded
+  enumeration.
+
   A third same-shape gap: `--recurse-submodules[=<mode>]` recurses the
   fetch into every populated submodule using _that submodule's own_
   configured remote, regardless of how trustworthy the superproject's
