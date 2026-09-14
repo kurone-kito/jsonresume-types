@@ -502,12 +502,16 @@ allow/deny split, softened as described below.
   `git branch -v -D <branch>` — a force-delete that the
   `Bash(git branch -D*)` deny below does not catch, since that deny's
   literal prefix requires `-D` immediately after `branch`, not after
-  another flag — the same positional gap documented above for
-  `git push --force*`. It is now the single exact form
-  `Bash(git branch -v)` (no trailing wildcard), matching this
-  repository's only observed use (a bare verbose listing, confirmed by
-  grepping the repository for other invocations) without matching any
-  argument that follows `-v`.
+  another flag — the same positional gap documented below for
+  `git push --force*` in
+  [the `gh api` DELETE-verb (and flag-position) trap](#the-gh-api-delete-verb-and-flag-position-trap).
+  It is now the single exact form `Bash(git branch -v)` (no trailing
+  wildcard), matching this repository's only observed use (a bare
+  verbose listing, confirmed by grepping the repository for other
+  invocations) without matching any argument that follows `-v`. This
+  repository has no `idd-template/` counterpart to mirror the
+  narrowing into; an equivalent fix there is upstream's own concern
+  (see the issue this bullet cites).
 - **Read-only `gh` queries plus reversible `gh` mutations**: issue/PR
   viewing, listing, diffing, and CI-check reads are pure reads; issue
   and PR comment/edit, PR review, and PR creation are mutations, but
