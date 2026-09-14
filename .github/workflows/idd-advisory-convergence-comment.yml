@@ -113,6 +113,20 @@
 # so this workflow does not need debounce protection for reviews at all;
 # "Rerun required HEAD check" below always proceeds for a review
 # submission instead of consulting the debounce step's output.
+#
+# Residual not closed by the above: a queued, not-yet-started run in
+# this same `concurrency.group` can still be evicted and replaced by a
+# newer trigger before debounce -- which only judges an already-started
+# run -- ever gets a say. This applies to a review-triggered run exactly
+# as it does to a comment-triggered one (a third event landing while a
+# review's run is queued behind an in-flight comment run evicts the
+# review's queued run, and it never carries `--refresh-latest`). This is
+# the same already-accepted upstream trade-off the v0.11.0 template
+# ships (`kurone-kito/idd-skill#2855`): no safe mechanical fix was found
+# within that scope; recovery is the same manual
+# `idd:rerun-advisory-convergence --refresh-latest --apply` this file's
+# header already documents for the `action_required` and fork-PR-token
+# cases above.
 name: IDD advisory-convergence comment refresh
 concurrency:
   # Do not cancel: a later human LGTM must not abort an in-flight
@@ -191,7 +205,7 @@ jobs:
         # run idd:review-comment-origin` package.json script alias was
         # briefly added for this invocation earlier on PR #106, but a
         # newly-added alias exists only on the unmerged PR branch until
-        # merge, so it 403-free but still failed with
+        # merge, so it ran 403-free but still failed with
         # `ERR_PNPM_NO_SCRIPT` against main's checkout -- observed live
         # on PR #106's own first push. No such alias exists in
         # package.json today (it was reverted for this reason); the
