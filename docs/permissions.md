@@ -444,28 +444,33 @@ allow/deny split, softened as described below.
   `log`, `show`, `branch --list` / `--show-current` / `-a` / `-v`,
   `worktree list`, `rev-parse`, `remote -v` / `remote show`, and
   `blame` are pure reads. `fetch` is the one deliberate exception, and
-  it is scoped to `Bash(git fetch origin)` + `Bash(git fetch origin *)`
-  rather than a bare `Bash(git fetch*)` or a raw `Bash(git fetch
-  origin*)` prefix: an unscoped `fetch` allow would let an argument
-  supply an arbitrary transport instead of the configured `origin`
-  remote — for example the `ext::` transport helper, which runs its
-  argument as a local subprocess (a documented git RCE vector) — and a
-  raw `git fetch origin*` prefix has its own, narrower version of the
-  same problem: it also matches any remote name merely _starting with_
+  it is scoped to the single entry `Bash(git fetch origin *)` rather
+  than a bare `Bash(git fetch*)` or a raw `Bash(git fetch origin*)`
+  prefix. A trailing `*` that is a rule's **only** wildcard also
+  matches the bare command under Claude Code's own documented matching
+  rules, so this one entry covers both bare `git fetch origin` and
+  `git fetch origin <refspec/flags>` — no separate exact-match entry is
+  needed. An unscoped `fetch` allow would let an argument supply an
+  arbitrary transport instead of the configured `origin` remote — for
+  example the `ext::` transport helper, which runs its argument as a
+  local subprocess (a documented git RCE vector) — and a raw
+  `git fetch origin*` prefix has its own, narrower version of the same
+  problem: it also matches any remote name merely _starting with_
   `origin` (for example `originEvil`), because Claude Code's prefix
   match has no word-boundary awareness. If such a remote is itself
   configured to a local path or an `ext::` URL, fetching it reopens the
-  arbitrary-transport vector this rule exists to close (found via
-  Copilot review on this change's own pull request, kurone-kito/jsonresume-types#121;
-  verified empirically — configuring a local-path remote literally
-  named `originEvil` and fetching it with a malicious `--upload-pack`
-  override executed the given program locally, and the resulting
-  command string matched the old raw-prefix rule). Requiring either
-  nothing or a literal space immediately after `origin` closes both
-  gaps the same way the `diff`/`branch -v` splits below do: everything
-  after `origin` (with the space) in a fetched command is refspec/flag
-  context for that already-configured, trusted remote, not a second
-  remote name or URL.
+  arbitrary-transport vector this rule exists to close (found
+  independently by both Copilot and Codex review on this change's own
+  pull request, kurone-kito/jsonresume-types#121; verified empirically
+  — configuring a local-path remote literally named `originEvil` and
+  fetching it with a malicious `--upload-pack` override executed the
+  given program locally, and the resulting command string matched the
+  old raw-prefix rule). Requiring a literal space immediately after
+  `origin` (or nothing at all, per the bare-command rule above) closes
+  both gaps the same way the `diff`/`branch -v` fix below does:
+  everything after `origin` (with the space) in a fetched command is
+  refspec/flag context for that already-configured, trusted remote, not
+  a second remote name or URL.
 
   A `--upload-pack=<program>` override is a narrower residual that
   scoping the remote name this tightly does **not** close on its own
@@ -491,19 +496,25 @@ allow/deny split, softened as described below.
   every adopter of this baseline. A defense-in-depth deny,
   `Bash(git fetch origin --upload-pack*)`, blocks the direct
   `git fetch origin --upload-pack=…` form the same way the DELETE-verb
-  denies below do for `gh api`, with two known residual gaps rather
-  than one: the same flag-position gap as those denies (`git fetch
-  origin main --upload-pack=…`, the flag placed after a refspec, is a
-  different literal prefix and is not caught), and, independently,
-  git's own option parser accepts any unambiguous abbreviation of a
-  long option — `git fetch origin --upload-pac=…` (or any shorter
-  unambiguous prefix) reaches the same local-execution behavior without
-  matching this deny's literal `--upload-pack` prefix at all (confirmed
-  empirically: an abbreviated flag proceeds past option parsing to the
-  transport step, while a genuinely unknown flag is rejected
-  immediately with `error: unknown option`). Given no clone of this
-  repository in current use has a locally/`ext::`-exploitable `origin`,
-  these residuals are accepted rather than pursued further. `fetch`
+  denies below do for `gh api`, with (at least) two known residual gaps
+  specific to this rule, on top of the general quoting/splitting
+  limitation Claude Code's own documentation describes for every
+  literal-text Bash rule (for example `git 'fetch' origin
+  --upload-pack=…` — a different literal string, unrelated to
+  `--upload-pack` itself, that this deny and every other rule in this
+  file share the same exposure to): the same flag-position gap as
+  those denies (`git fetch origin main
+  --upload-pack=…`, the flag placed after a refspec, is a different
+  literal prefix and is not caught), and, independently, git's own
+  option parser accepts any unambiguous abbreviation of a long option —
+  `git fetch origin --upload-pac=…` (or any shorter unambiguous prefix)
+  reaches the same local-execution behavior without matching this
+  deny's literal `--upload-pack` prefix at all (confirmed empirically:
+  an abbreviated flag proceeds past option parsing to the transport
+  step, while a genuinely unknown flag is rejected immediately with
+  `error: unknown option`). Given no clone of this repository in
+  current use has a locally/`ext::`-exploitable `origin`, these
+  residuals are accepted rather than pursued further. `fetch`
   still downloads objects and updates local remote-tracking refs
   (`refs/remotes/origin/*`), so it is not strictly read-only, but it
   never touches the working tree, the index, or a local branch
@@ -518,11 +529,13 @@ allow/deny split, softened as described below.
   Code's prefix match has no word-boundary awareness (the same class
   of gap as
   [the `gh api` DELETE-verb trap](#the-gh-api-delete-verb-and-flag-position-trap)
-  below). It is now two entries, `Bash(git diff)` (bare) and
-  `Bash(git diff *)` (space-delimited), which still match bare
-  `git diff` and any `git diff <args>` but no longer share a prefix
-  with `git difftool…`, since that command has no space immediately
-  after `diff`. Likewise, `Bash(git branch -v*)` also prefix-matched
+  below). It is now the single entry `Bash(git diff *)`: a trailing
+  `*` that is a rule's only wildcard also matches the bare command
+  under Claude Code's own documented matching rules, so this one entry
+  still matches bare `git diff` and any `git diff <args>`, but no
+  longer shares a prefix with `git difftool…`, since that command has
+  no space immediately after `diff` (no separate exact-match entry is
+  needed). Likewise, `Bash(git branch -v*)` also prefix-matched
   `git branch -v -D <branch>` — a force-delete that the
   `Bash(git branch -D*)` deny below does not catch, since that deny's
   literal prefix requires `-D` immediately after `branch`, not after
