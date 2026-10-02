@@ -195,7 +195,7 @@ importers:
         version: https://codeload.github.com/kurone-kito/idd-skill/tar.gz/1f90787ebf4021673ce6e5eb69741df331fd2037
       '@kurone-kito/lint-staged-config':
         specifier: ^0.23.0-alpha.1
-        version: 0.23.0-alpha.1(cspell@10.3.5)(lint-staged@17.4.1)
+        version: 0.23.0(@biomejs/biome@2.5.14)(cspell@10.3.5)(lint-staged@17.4.1)
       '@kurone-kito/markdownlint-config':
         specifier: ^0.23.0-alpha.1
         version: 0.23.0(markdownlint-cli2@0.23.2)
@@ -658,13 +658,16 @@ packages:
     engines: {node: ^22.23.2 || ^24.2.0 || >=26.0.0, pnpm: ^12.4.0}
     hasBin: true
 
-  '@kurone-kito/lint-staged-config@0.23.0-alpha.1':
-    resolution: {integrity: sha512-cbhWs40pak7yiciVsocbi74g8PU0/agnRw0tYyvmUfGOQ9Rx7XxJh8z9zN6nCkfX6rnuznEoF2eLFtlkgZPtSg==}
-    engines: {node: ^20.18 || ^22 || >=24}
+  '@kurone-kito/lint-staged-config@0.23.0':
+    resolution: {integrity: sha512-f9U9uls4Z1iXXuqH6Zprxl9zJACRFkgnJx7vmf1yEm1zWB/LCx+vsfIXU5isVEiVFs+swSXUmX9onwS01yiVGg==}
+    engines: {node: ^22.23.2 || ^24.2.0 || >=26.0.0}
     peerDependencies:
-      cspell: '>=5.7.x'
+      '@biomejs/biome': '>=2.3.9'
+      cspell: '>=8.x.x'
       lint-staged: '>=12.1.0'
     peerDependenciesMeta:
+      '@biomejs/biome':
+        optional: true
       cspell:
         optional: true
       lint-staged:
@@ -1965,8 +1968,9 @@ snapshots:
 
   '@kurone-kito/idd-skill@https://codeload.github.com/kurone-kito/idd-skill/tar.gz/1f90787ebf4021673ce6e5eb69741df331fd2037': {}
 
-  '@kurone-kito/lint-staged-config@0.23.0-alpha.1(cspell@10.3.5)(lint-staged@17.4.1)':
+  '@kurone-kito/lint-staged-config@0.23.0(@biomejs/biome@2.5.14)(cspell@10.3.5)(lint-staged@17.4.1)':
     optionalDependencies:
+      '@biomejs/biome': 2.5.14
       cspell: 10.3.5
       lint-staged: 17.4.1
 
