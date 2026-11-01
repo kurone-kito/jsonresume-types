@@ -174,7 +174,7 @@ importers:
         version: 21.2.1(@types/node@24.0.1)(conventional-commits-parser@7.1.1)(typescript@7.0.2)
       '@commitlint/config-conventional':
         specifier: ^21.2.0
-        version: 21.2.3
+        version: 21.2.4
       '@cspell/cspell-types':
         specifier: ^10.0.1
         version: 10.1.1
@@ -186,7 +186,7 @@ importers:
         version: 0.23.0(@biomejs/biome@2.5.14)
       '@kurone-kito/commitlint-config':
         specifier: ^0.23.0-alpha.1
-        version: 0.23.0-alpha.1(@commitlint/config-conventional@21.2.3)
+        version: 0.23.0-alpha.1(@commitlint/config-conventional@21.2.4)
       '@kurone-kito/cspell-config':
         specifier: ^0.23.0-alpha.1
         version: 0.23.0(cspell@10.3.5)
@@ -300,8 +300,8 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
 
-  '@commitlint/config-conventional@21.2.3':
-    resolution: {integrity: sha512-EP2n5DN2GwRWNVrLX0Jx3mpQlW5PfFi9HnD9OJ8hN/H0xFqpCFyHeGDhg+0P8/21iMMcdkcQgbNqmVklebqYsQ==}
+  '@commitlint/config-conventional@21.2.4':
+    resolution: {integrity: sha512-IRldtwgNmR0SySR7wizFbhRmq45lPt6H3XCNTMyVN7jrPLgi8JlTRR6Eg1HLWUQt9P1Lh3k6eY25ilDa47EE6w==}
     engines: {node: '>=22.12.0'}
 
   '@commitlint/config-validator@21.2.0':
@@ -1611,7 +1611,7 @@ snapshots:
 
   '@commitlint/cli@21.2.1(@types/node@24.0.1)(conventional-commits-parser@7.1.1)(typescript@7.0.2)':
     dependencies:
-      '@commitlint/config-conventional': 21.2.3
+      '@commitlint/config-conventional': 21.2.4
       '@commitlint/format': 21.2.0
       '@commitlint/lint': 21.2.0
       '@commitlint/load': 21.2.0(@types/node@24.0.1)(typescript@7.0.2)
@@ -1625,7 +1625,7 @@ snapshots:
       - conventional-commits-parser
       - typescript
 
-  '@commitlint/config-conventional@21.2.3':
+  '@commitlint/config-conventional@21.2.4':
     dependencies:
       '@commitlint/types': 21.2.3
       conventional-changelog-conventionalcommits: 10.2.1
@@ -1967,9 +1967,9 @@ snapshots:
     optionalDependencies:
       '@biomejs/biome': 2.5.14
 
-  '@kurone-kito/commitlint-config@0.23.0-alpha.1(@commitlint/config-conventional@21.2.3)':
+  '@kurone-kito/commitlint-config@0.23.0-alpha.1(@commitlint/config-conventional@21.2.4)':
     optionalDependencies:
-      '@commitlint/config-conventional': 21.2.3
+      '@commitlint/config-conventional': 21.2.4
 
   '@kurone-kito/cspell-config@0.23.0(cspell@10.3.5)':
     optionalDependencies:
